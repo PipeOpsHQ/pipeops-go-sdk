@@ -37,6 +37,7 @@ type Client struct {
 
 	// Services used for talking to different parts of the PipeOps API.
 	Auth         *AuthService
+	OAuth        *OAuthService
 	Projects     *ProjectService
 	Servers      *ServerService
 	Environments *EnvironmentService
@@ -65,6 +66,7 @@ func NewClient(baseURL string) *Client {
 
 	// Initialize services
 	c.Auth = &AuthService{client: c}
+	c.OAuth = &OAuthService{client: c}
 	c.Projects = &ProjectService{client: c}
 	c.Servers = &ServerService{client: c}
 	c.Environments = &EnvironmentService{client: c}
