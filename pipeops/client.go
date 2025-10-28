@@ -62,6 +62,15 @@ type Client struct {
 	Profile             *ProfileService
 	MCPRegistry         *MCPRegistryService
 	OpenCost            *OpenCostService
+	Notifications       *NotificationService
+	Templates           *TemplateService
+	Integrations        *IntegrationService
+	HealthCheck         *HealthCheckService
+	Backups             *BackupService
+	SecurityScan        *SecurityScanService
+	Logs                *LogService
+	AuditLogs           *AuditLogService
+	Alerts              *AlertService
 }
 
 // NewClient returns a new PipeOps API client.
@@ -105,6 +114,15 @@ func NewClient(baseURL string) *Client {
 	c.Profile = &ProfileService{client: c}
 	c.MCPRegistry = &MCPRegistryService{client: c}
 	c.OpenCost = &OpenCostService{client: c}
+	c.Notifications = &NotificationService{client: c}
+	c.Templates = &TemplateService{client: c}
+	c.Integrations = &IntegrationService{client: c}
+	c.HealthCheck = &HealthCheckService{client: c}
+	c.Backups = &BackupService{client: c}
+	c.SecurityScan = &SecurityScanService{client: c}
+	c.Logs = &LogService{client: c}
+	c.AuditLogs = &AuditLogService{client: c}
+	c.Alerts = &AlertService{client: c}
 
 	return c
 }

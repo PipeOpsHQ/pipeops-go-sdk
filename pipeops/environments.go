@@ -160,3 +160,34 @@ func (s *EnvironmentService) SetEnvVariables(ctx context.Context, envUUID string
 	resp, err := s.client.Do(ctx, httpReq, nil)
 	return resp, err
 }
+
+// CloneEnvironment clones an environment with its settings.
+func (s *EnvironmentService) CloneEnvironment(ctx context.Context, envUUID string) (*EnvironmentResponse, *http.Response, error) {
+	u := fmt.Sprintf("environment/%s/clone", envUUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	envResp := new(EnvironmentResponse)
+	resp, err := s.client.Do(ctx, req, envResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return envResp, resp, nil
+}
+
+// ExportEnvironment exports environment configuration.
+func (s *EnvironmentService) ExportEnvironment(ctx context.Context, envUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("environment/%s/export", envUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

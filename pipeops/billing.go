@@ -588,3 +588,94 @@ func (s *BillingService) CreateWorkspaceBilling(ctx context.Context) (*http.Resp
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
 }
+
+// RefundRequest represents a refund request.
+type RefundRequest struct {
+	InvoiceUUID string  `json:"invoice_uuid"`
+	Amount      float64 `json:"amount,omitempty"`
+	Reason      string  `json:"reason,omitempty"`
+}
+
+// ProcessRefund processes a billing refund (admin only).
+func (s *BillingService) ProcessRefund(ctx context.Context, req *RefundRequest) (*http.Response, error) {
+	u := "billing/refund"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// ApplyDiscount applies a discount to a subscription.
+type ApplyDiscountRequest struct {
+	SubscriptionUUID string  `json:"subscription_uuid"`
+	DiscountPercent  float64 `json:"discount_percent"`
+	Duration         int     `json:"duration,omitempty"` // months
+}
+
+// ApplyDiscount applies a discount (admin only).
+func (s *BillingService) ApplyDiscount(ctx context.Context, req *ApplyDiscountRequest) (*http.Response, error) {
+	u := "billing/discount/apply"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// GetBillingReports retrieves billing reports (admin only).
+func (s *BillingService) GetBillingReports(ctx context.Context) (*http.Response, error) {
+	u := "billing/reports"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// ExportInvoices exports invoices to CSV/PDF.
+type ExportInvoicesRequest struct {
+	Format    string `json:"format"` // "csv" or "pdf"
+	StartDate string `json:"start_date,omitempty"`
+	EndDate   string `json:"end_date,omitempty"`
+}
+
+// ExportInvoices exports invoices.
+func (s *BillingService) ExportInvoices(ctx context.Context, req *ExportInvoicesRequest) (*http.Response, error) {
+	u := "billing/invoices/export"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// UpdatePaymentMethod updates the default payment method.
+type UpdatePaymentMethodRequest struct {
+	CardUUID string `json:"card_uuid"`
+}
+
+// UpdatePaymentMethod updates payment method.
+func (s *BillingService) UpdatePaymentMethod(ctx context.Context, req *UpdatePaymentMethodRequest) (*http.Response, error) {
+	u := "billing/payment-method/update"
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}

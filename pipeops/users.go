@@ -163,3 +163,16 @@ func (s *UserService) UpdateProfile(ctx context.Context, req *UpdateProfileReque
 
 	return profileResp, resp, nil
 }
+
+// ResetSecretToken resets the user's secret token (DEPRECATED).
+func (s *UserService) ResetSecretToken(ctx context.Context) (*http.Response, error) {
+	u := "user-settings/reset-secret"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

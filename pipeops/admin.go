@@ -412,3 +412,66 @@ func (s *AdminService) PauseSubscription(ctx context.Context, subID string, req 
 	resp, err := s.client.Do(ctx, httpReq, nil)
 	return resp, err
 }
+
+// GetAuditLogs retrieves audit logs (admin only).
+func (s *AdminService) GetAuditLogs(ctx context.Context) (*http.Response, error) {
+	u := "admin/audit-logs"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetSystemHealth retrieves system health status (admin only).
+func (s *AdminService) GetSystemHealth(ctx context.Context) (*http.Response, error) {
+	u := "admin/system/health"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// BroadcastRequest represents a broadcast message request.
+type BroadcastRequest struct {
+	Message string   `json:"message"`
+	Users   []string `json:"users,omitempty"`
+}
+
+// BroadcastMessage broadcasts a message to users (admin only).
+func (s *AdminService) BroadcastMessage(ctx context.Context, req *BroadcastRequest) (*http.Response, error) {
+	u := "admin/broadcast"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// ImpersonateUserRequest represents a user impersonation request.
+type ImpersonateUserRequest struct {
+	UserUUID string `json:"user_uuid"`
+}
+
+// ImpersonateUser impersonates a user (admin only).
+func (s *AdminService) ImpersonateUser(ctx context.Context, req *ImpersonateUserRequest) (*http.Response, error) {
+	u := "admin/impersonate"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}

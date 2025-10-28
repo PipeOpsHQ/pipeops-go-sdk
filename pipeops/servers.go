@@ -380,3 +380,86 @@ func (s *ServerService) GetClusterCostAllocation(ctx context.Context, clusterUUI
 
 	return costResp, resp, nil
 }
+
+// UpdateAgentStatusRequest represents agent status update.
+type UpdateAgentStatusRequest struct {
+	Status string `json:"status"`
+}
+
+// UpdateAgentStatus updates agent status.
+func (s *ServerService) UpdateAgentStatus(ctx context.Context, clusterUUID string, req *UpdateAgentStatusRequest) (*http.Response, error) {
+	u := fmt.Sprintf("api/v1/clusters/agent/%s/status", clusterUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// GetAgentConfig retrieves agent configuration.
+func (s *ServerService) GetAgentConfig(ctx context.Context, clusterUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("api/v1/clusters/agent/%s/config", clusterUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// SyncAgentConfig syncs agent configuration.
+func (s *ServerService) SyncAgentConfig(ctx context.Context, clusterUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("api/v1/clusters/agent/%s/sync", clusterUUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetAgentLogs retrieves agent logs.
+func (s *ServerService) GetAgentLogs(ctx context.Context, clusterUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("api/v1/clusters/agent/%s/logs", clusterUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetAgentMetrics retrieves agent metrics.
+func (s *ServerService) GetAgentMetrics(ctx context.Context, clusterUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("api/v1/clusters/agent/%s/metrics", clusterUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// DeregisterAgent deregisters an agent.
+func (s *ServerService) DeregisterAgent(ctx context.Context, clusterUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("api/v1/clusters/agent/%s/deregister", clusterUUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

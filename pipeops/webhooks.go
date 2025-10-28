@@ -134,3 +134,42 @@ func (s *WebhookService) Delete(ctx context.Context, webhookUUID string) (*http.
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
 }
+
+// TestWebhook tests a webhook endpoint.
+func (s *WebhookService) TestWebhook(ctx context.Context, webhookUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("webhook/customer/webhook/%s/test", webhookUUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetWebhookDeliveries retrieves webhook delivery history.
+func (s *WebhookService) GetWebhookDeliveries(ctx context.Context, webhookUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("webhook/customer/webhook/%s/deliveries", webhookUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// RetryWebhookDelivery retries a failed webhook delivery.
+func (s *WebhookService) RetryWebhookDelivery(ctx context.Context, webhookUUID, deliveryID string) (*http.Response, error) {
+	u := fmt.Sprintf("webhook/customer/webhook/%s/deliveries/%s/retry", webhookUUID, deliveryID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

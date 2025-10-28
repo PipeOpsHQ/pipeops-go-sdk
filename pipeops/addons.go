@@ -425,3 +425,81 @@ func (s *AddOnService) BulkDeleteDeployments(ctx context.Context, req *BulkDelet
 	resp, err := s.client.Do(ctx, httpReq, nil)
 	return resp, err
 }
+
+// Admin Add-On Endpoints
+
+// GetSubmittedAddOns retrieves submitted add-ons (admin only).
+func (s *AddOnService) GetSubmittedAddOns(ctx context.Context) (*MySubmissionsResponse, *http.Response, error) {
+	u := "admin/addons/submissions"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	submissionsResp := new(MySubmissionsResponse)
+	resp, err := s.client.Do(ctx, req, submissionsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return submissionsResp, resp, nil
+}
+
+// ReviewAddOnRequest represents an add-on review request.
+type ReviewAddOnRequest struct {
+	Status   string `json:"status"` // "approved" or "rejected"
+	Comments string `json:"comments,omitempty"`
+}
+
+// ReviewAddOnApprove approves an add-on submission (admin only).
+func (s *AddOnService) ReviewAddOnApprove(ctx context.Context, addonUUID string, req *ReviewAddOnRequest) (*http.Response, error) {
+	u := fmt.Sprintf("admin/addons/%s/review", addonUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// PublishAddOn publishes an approved add-on (admin only).
+func (s *AddOnService) PublishAddOn(ctx context.Context, addonUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("admin/addons/%s/publish", addonUUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// UnpublishAddOn unpublishes an add-on (admin only).
+func (s *AddOnService) UnpublishAddOn(ctx context.Context, addonUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("admin/addons/%s/unpublish", addonUUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// DeleteAddOn deletes an add-on (admin only).
+func (s *AddOnService) DeleteAddOn(ctx context.Context, addonUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("admin/addons/%s", addonUUID)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

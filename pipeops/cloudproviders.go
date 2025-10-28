@@ -326,3 +326,53 @@ func (s *CloudProviderService) GetAWSReference(ctx context.Context) (*http.Respo
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
 }
+
+// ELBCalculatorRequest represents ELB cost calculator request.
+type ELBCalculatorRequest struct {
+	LoadBalancerType string `json:"load_balancer_type"`
+	Region           string `json:"region"`
+	Hours            int    `json:"hours,omitempty"`
+}
+
+// CalculateELBCost calculates ELB costs.
+func (s *CloudProviderService) CalculateELBCost(ctx context.Context, req *ELBCalculatorRequest) (*CalculatorResponse, *http.Response, error) {
+	u := "aws/elb-calculator"
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	calcResp := new(CalculatorResponse)
+	resp, err := s.client.Do(ctx, httpReq, calcResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return calcResp, resp, nil
+}
+
+// EBSCalculatorRequest represents EBS cost calculator request.
+type EBSCalculatorRequest struct {
+	VolumeType string `json:"volume_type"`
+	SizeGB     int    `json:"size_gb"`
+	Region     string `json:"region"`
+}
+
+// CalculateEBSCost calculates EBS costs.
+func (s *CloudProviderService) CalculateEBSCost(ctx context.Context, req *EBSCalculatorRequest) (*CalculatorResponse, *http.Response, error) {
+	u := "aws/ebs-calculator"
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	calcResp := new(CalculatorResponse)
+	resp, err := s.client.Do(ctx, httpReq, calcResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return calcResp, resp, nil
+}
