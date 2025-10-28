@@ -2,6 +2,8 @@
 
 A comprehensive Go SDK for interacting with the PipeOps Control Plane API.
 
+**Status:** 145+ endpoints implemented across 15 services (50% of 288 total API endpoints)
+
 ## Installation
 
 ```bash
@@ -51,26 +53,32 @@ func main() {
 This SDK provides access to the following PipeOps API categories:
 
 ### Core Services
-- **Authentication** - Login, signup, password management
-- **OAuth 2.0** - Authorization code flow, token exchange, user info
-- **Projects** - Full CRUD operations with filtering
-- **Servers/Clusters** - Server and cluster management
-- **Environments** - Environment configuration
+- **Authentication** (4 endpoints) - Login, signup, password management
+- **OAuth 2.0** (4 endpoints) - Authorization code flow, token exchange, user info
+- **Projects** (16 endpoints) - Full CRUD, logs, metrics, GitHub integration, env vars, deployment controls, costs
+- **Servers/Clusters** (14 endpoints) - CRUD, service tokens, agent operations, tunnel info, cost allocation
+- **Environments** (6 endpoints) - CRUD, environment variable management
 
 ### Organization & Access
-- **Teams** - Team creation, member management, invitations
-- **Workspaces** - Workspace management and collaboration
+- **Teams** (6 endpoints) - Team creation, member management, invitations
+- **Workspaces** (3 endpoints) - Workspace management and collaboration
 
 ### Add-Ons & Extensions
-- **Add-Ons** - Browse, deploy, and manage add-ons
-- **Webhooks** - Webhook configuration and management
+- **Add-Ons** (16 endpoints) - Submit, deploy, manage deployments, configurations, sessions, bulk operations
+- **Webhooks** (5 endpoints) - Webhook configuration and management
 
 ### Billing & Usage
-- **Billing** - Payment cards, subscriptions, invoices, usage tracking
+- **Billing** (22 endpoints) - Cards, subscriptions, invoices, usage, balance, credit, history, plans, trials, portal
 
-### User Management
-- **User Settings** - Preferences, notifications, profile management
-- **Admin** - User administration, statistics, plan management (admin only)
+### Cloud Providers
+- **Cloud Providers** (13 endpoints) - AWS, GCP, Azure, DigitalOcean, Huawei account management
+
+### User Management & Administration
+- **User Settings** (5 endpoints) - Preferences, notifications, profile management
+- **Admin** (16 endpoints) - User administration, statistics, plan management, waitlist programs, bulk operations
+
+### Additional Services
+- **Events & Survey** (15 endpoints) - Event management, surveys, partners, contact us, waitlist, dashboard
 
 ## OAuth 2.0 Support
 
