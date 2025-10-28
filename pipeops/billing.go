@@ -276,3 +276,271 @@ func (s *BillingService) GetUsage(ctx context.Context) (*UsageResponse, *http.Re
 
 	return usageResp, resp, nil
 }
+
+// BalanceResponse represents account balance response.
+type BalanceResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Balance  float64 `json:"balance"`
+		Currency string  `json:"currency"`
+	} `json:"data"`
+}
+
+// GetBalance retrieves the current account balance.
+func (s *BillingService) GetBalance(ctx context.Context) (*BalanceResponse, *http.Response, error) {
+	u := "billing/balance"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	balanceResp := new(BalanceResponse)
+	resp, err := s.client.Do(ctx, req, balanceResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return balanceResp, resp, nil
+}
+
+// CreditRequest represents a credit add request.
+type CreditRequest struct {
+	Amount float64 `json:"amount"`
+}
+
+// AddCredit adds credit to the account.
+func (s *BillingService) AddCredit(ctx context.Context, req *CreditRequest) (*BalanceResponse, *http.Response, error) {
+	u := "billing/credit"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	balanceResp := new(BalanceResponse)
+	resp, err := s.client.Do(ctx, httpReq, balanceResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return balanceResp, resp, nil
+}
+
+// BillingHistoryResponse represents billing history response.
+type BillingHistoryResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		History []map[string]interface{} `json:"history"`
+	} `json:"data"`
+}
+
+// GetHistory retrieves billing history.
+func (s *BillingService) GetHistory(ctx context.Context) (*BillingHistoryResponse, *http.Response, error) {
+	u := "billing/history"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	historyResp := new(BillingHistoryResponse)
+	resp, err := s.client.Do(ctx, req, historyResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return historyResp, resp, nil
+}
+
+// SetActiveCardRequest represents a request to set active billing card.
+type SetActiveCardRequest struct {
+	CardUUID string `json:"card_uuid"`
+}
+
+// SetActiveCard sets the active billing card.
+func (s *BillingService) SetActiveCard(ctx context.Context, cardUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("billing/workspace/cards%s", cardUUID)
+
+	req, err := s.client.NewRequest(http.MethodPut, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetActiveCard retrieves the active billing card.
+func (s *BillingService) GetActiveCard(ctx context.Context) (*CardResponse, *http.Response, error) {
+	u := "billing/workspace/cards/active"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cardResp := new(CardResponse)
+	resp, err := s.client.Do(ctx, req, cardResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return cardResp, resp, nil
+}
+
+// CreateFreeServerRequest represents a request to create a free server.
+type CreateFreeServerRequest struct {
+	Provider string `json:"provider"`
+	Region   string `json:"region"`
+}
+
+// CreateFreeServer creates a free trial server.
+func (s *BillingService) CreateFreeServer(ctx context.Context, req *CreateFreeServerRequest) (*http.Response, error) {
+	u := "billing/create_free_server"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// StartTrialRequest represents a request to start a trial.
+type StartTrialRequest struct {
+	PlanID string `json:"plan_id"`
+}
+
+// StartTrial starts a free trial.
+func (s *BillingService) StartTrial(ctx context.Context, req *StartTrialRequest) (*http.Response, error) {
+	u := "billing/start-trial"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// PortalResponse represents billing portal response.
+type PortalResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		PortalURL string `json:"portal_url"`
+	} `json:"data"`
+}
+
+// GetPortalURL retrieves the billing portal URL.
+func (s *BillingService) GetPortalURL(ctx context.Context) (*PortalResponse, *http.Response, error) {
+	u := "billing/portal"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	portalResp := new(PortalResponse)
+	resp, err := s.client.Do(ctx, req, portalResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return portalResp, resp, nil
+}
+
+// DeploymentQuotaTopupRequest represents a deployment quota topup request.
+type DeploymentQuotaTopupRequest struct {
+	Amount int `json:"amount"`
+}
+
+// DeploymentQuotaTopup adds deployment quota.
+func (s *BillingService) DeploymentQuotaTopup(ctx context.Context, req *DeploymentQuotaTopupRequest) (*http.Response, error) {
+	u := "billing/deployment-quota/topup"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// GetWorkspaceSubscription retrieves subscription for a workspace.
+func (s *BillingService) GetWorkspaceSubscription(ctx context.Context, workspaceUUID string) (*SubscriptionResponse, *http.Response, error) {
+	u := fmt.Sprintf("billing/subscriptions/workspace/%s/current", workspaceUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	subResp := new(SubscriptionResponse)
+	resp, err := s.client.Do(ctx, req, subResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return subResp, resp, nil
+}
+
+// GetTeamSeatSubscription retrieves team seat subscription.
+func (s *BillingService) GetTeamSeatSubscription(ctx context.Context) (*SubscriptionResponse, *http.Response, error) {
+	u := "billing/subscriptions/workspace/team-seat"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	subResp := new(SubscriptionResponse)
+	resp, err := s.client.Do(ctx, req, subResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return subResp, resp, nil
+}
+
+// GetCurrentSubscription retrieves the current subscription.
+func (s *BillingService) GetCurrentSubscription(ctx context.Context) (*SubscriptionResponse, *http.Response, error) {
+	u := "billing/subscriptions/current"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	subResp := new(SubscriptionResponse)
+	resp, err := s.client.Do(ctx, req, subResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return subResp, resp, nil
+}
+
+// GetPlans retrieves available billing plans.
+func (s *BillingService) GetPlans(ctx context.Context) (*PlansResponse, *http.Response, error) {
+	u := "billing/plans"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	plansResp := new(PlansResponse)
+	resp, err := s.client.Do(ctx, req, plansResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return plansResp, resp, nil
+}

@@ -222,3 +222,206 @@ func (s *AddOnService) ListCategories(ctx context.Context) (*AddOnCategoriesResp
 
 	return categoriesResp, resp, nil
 }
+
+// AddOnSubmissionRequest represents an add-on submission request.
+type AddOnSubmissionRequest struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Category    string                 `json:"category"`
+	Version     string                 `json:"version"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+}
+
+// SubmitAddOn submits a new add-on for review.
+func (s *AddOnService) SubmitAddOn(ctx context.Context, req *AddOnSubmissionRequest) (*AddOnResponse, *http.Response, error) {
+	u := "addons/submit"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	addOnResp := new(AddOnResponse)
+	resp, err := s.client.Do(ctx, httpReq, addOnResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return addOnResp, resp, nil
+}
+
+// MySubmissionsResponse represents user's add-on submissions response.
+type MySubmissionsResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Submissions []AddOn `json:"submissions"`
+	} `json:"data"`
+}
+
+// GetMySubmissions retrieves user's add-on submissions.
+func (s *AddOnService) GetMySubmissions(ctx context.Context) (*MySubmissionsResponse, *http.Response, error) {
+	u := "addons/my-submissions"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	submissionsResp := new(MySubmissionsResponse)
+	resp, err := s.client.Do(ctx, req, submissionsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return submissionsResp, resp, nil
+}
+
+// UpdateDeploymentRequest represents a request to update an add-on deployment.
+type UpdateDeploymentRequest struct {
+	Config map[string]interface{} `json:"config,omitempty"`
+	Status string                 `json:"status,omitempty"`
+}
+
+// UpdateDeployment updates an add-on deployment configuration.
+func (s *AddOnService) UpdateDeployment(ctx context.Context, deploymentUUID string, req *UpdateDeploymentRequest) (*AddOnDeploymentResponse, *http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s", deploymentUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deployResp := new(AddOnDeploymentResponse)
+	resp, err := s.client.Do(ctx, httpReq, deployResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return deployResp, resp, nil
+}
+
+// SyncDeployment syncs an add-on deployment.
+func (s *AddOnService) SyncDeployment(ctx context.Context, deploymentUID string) (*http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s/sync", deploymentUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// DeploymentOverviewResponse represents deployment overview response.
+type DeploymentOverviewResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Overview map[string]interface{} `json:"overview"`
+	} `json:"data"`
+}
+
+// GetDeploymentOverview retrieves deployment overview.
+func (s *AddOnService) GetDeploymentOverview(ctx context.Context) (*DeploymentOverviewResponse, *http.Response, error) {
+	u := "addons/deployments/overview"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	overviewResp := new(DeploymentOverviewResponse)
+	resp, err := s.client.Do(ctx, req, overviewResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return overviewResp, resp, nil
+}
+
+// DeploymentSessionResponse represents deployment session response.
+type DeploymentSessionResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Session map[string]interface{} `json:"session"`
+	} `json:"data"`
+}
+
+// GetDeploymentSession retrieves deployment session information.
+func (s *AddOnService) GetDeploymentSession(ctx context.Context, sessionID string) (*DeploymentSessionResponse, *http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/sessions/%s", sessionID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sessionResp := new(DeploymentSessionResponse)
+	resp, err := s.client.Do(ctx, req, sessionResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return sessionResp, resp, nil
+}
+
+// DeploymentConfigsResponse represents deployment configs response.
+type DeploymentConfigsResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Configs map[string]interface{} `json:"configs"`
+	} `json:"data"`
+}
+
+// ViewDeploymentConfigs views deployment configurations.
+func (s *AddOnService) ViewDeploymentConfigs(ctx context.Context, addonUUID string) (*DeploymentConfigsResponse, *http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s/view/configs", addonUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	configsResp := new(DeploymentConfigsResponse)
+	resp, err := s.client.Do(ctx, req, configsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return configsResp, resp, nil
+}
+
+// AddDomain adds a domain to an add-on.
+func (s *AddOnService) AddDomain(ctx context.Context, addonUUID string, req *DomainRequest) (*http.Response, error) {
+	u := fmt.Sprintf("addons/%s/domain", addonUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// BulkDeleteDeploymentsRequest represents a request to bulk delete deployments.
+type BulkDeleteDeploymentsRequest struct {
+	DeploymentUIDs []string `json:"deployment_uids"`
+}
+
+// BulkDeleteDeployments deletes multiple add-on deployments.
+func (s *AddOnService) BulkDeleteDeployments(ctx context.Context, req *BulkDeleteDeploymentsRequest) (*http.Response, error) {
+	u := "addons/deployments/bulk"
+
+	httpReq, err := s.client.NewRequest(http.MethodDelete, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
