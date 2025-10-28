@@ -75,3 +75,88 @@ func (s *EnvironmentService) Get(ctx context.Context, envUUID string) (*Environm
 
 	return envResp, resp, nil
 }
+
+// CreateEnvironmentRequest represents a request to create an environment.
+type CreateEnvironmentRequest struct {
+	Name         string        `json:"name"`
+	WorkspaceID  string        `json:"workspace_id"`
+	EnvVariables []EnvVariable `json:"env_variables,omitempty"`
+}
+
+// EnvVariable represents an environment variable.
+type EnvVariable struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// Create creates a new environment.
+func (s *EnvironmentService) Create(ctx context.Context, req *CreateEnvironmentRequest) (*EnvironmentResponse, *http.Response, error) {
+	u := "environment/create"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	envResp := new(EnvironmentResponse)
+	resp, err := s.client.Do(ctx, httpReq, envResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return envResp, resp, nil
+}
+
+// UpdateEnvironmentRequest represents a request to update an environment.
+type UpdateEnvironmentRequest struct {
+	Name string `json:"name,omitempty"`
+}
+
+// Update updates an environment.
+func (s *EnvironmentService) Update(ctx context.Context, envUUID string, req *UpdateEnvironmentRequest) (*EnvironmentResponse, *http.Response, error) {
+	u := fmt.Sprintf("environment/%s/update", envUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	envResp := new(EnvironmentResponse)
+	resp, err := s.client.Do(ctx, httpReq, envResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return envResp, resp, nil
+}
+
+// Delete deletes an environment.
+func (s *EnvironmentService) Delete(ctx context.Context, envUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("environment/%s", envUUID)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// SetEnvironmentVariablesRequest represents a request to set environment variables.
+type SetEnvironmentVariablesRequest struct {
+	EnvVariables []EnvVariable `json:"env_variables"`
+}
+
+// SetEnvVariables sets environment variables for an environment.
+func (s *EnvironmentService) SetEnvVariables(ctx context.Context, envUUID string, req *SetEnvironmentVariablesRequest) (*http.Response, error) {
+	u := fmt.Sprintf("environment/%s/set-environment-env", envUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}

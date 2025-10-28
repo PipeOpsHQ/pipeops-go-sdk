@@ -36,18 +36,23 @@ type Client struct {
 	token string
 
 	// Services used for talking to different parts of the PipeOps API.
-	Auth         *AuthService
-	OAuth        *OAuthService
-	Projects     *ProjectService
-	Servers      *ServerService
-	Environments *EnvironmentService
-	Teams        *TeamService
-	Workspaces   *WorkspaceService
-	Billing      *BillingService
-	AddOns       *AddOnService
-	Webhooks     *WebhookService
-	Users        *UserService
-	Admin        *AdminService
+	Auth           *AuthService
+	OAuth          *OAuthService
+	Projects       *ProjectService
+	Servers        *ServerService
+	Environments   *EnvironmentService
+	Teams          *TeamService
+	Workspaces     *WorkspaceService
+	Billing        *BillingService
+	AddOns         *AddOnService
+	Webhooks       *WebhookService
+	Users          *UserService
+	Admin          *AdminService
+	CloudProviders *CloudProviderService
+	Events         *EventService
+	Survey         *SurveyService
+	Partners       *PartnerService
+	Misc           *MiscService
 }
 
 // NewClient returns a new PipeOps API client.
@@ -77,6 +82,11 @@ func NewClient(baseURL string) *Client {
 	c.Webhooks = &WebhookService{client: c}
 	c.Users = &UserService{client: c}
 	c.Admin = &AdminService{client: c}
+	c.CloudProviders = &CloudProviderService{client: c}
+	c.Events = &EventService{client: c}
+	c.Survey = &SurveyService{client: c}
+	c.Partners = &PartnerService{client: c}
+	c.Misc = &MiscService{client: c}
 
 	return c
 }

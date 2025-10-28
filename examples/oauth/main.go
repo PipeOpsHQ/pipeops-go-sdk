@@ -31,7 +31,7 @@ func main() {
 
 	fmt.Printf("Please visit this URL to authorize:\n%s\n\n", authURL)
 	fmt.Print("Enter the authorization code from the callback: ")
-	
+
 	var authCode string
 	fmt.Scanln(&authCode)
 
