@@ -544,3 +544,47 @@ func (s *BillingService) GetPlans(ctx context.Context) (*PlansResponse, *http.Re
 
 	return plansResp, resp, nil
 }
+
+// ResetSubscription resets a user's subscription (admin only).
+func (s *BillingService) ResetSubscription(ctx context.Context, userUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("billing/subscriptions/reset/user/%s", userUUID)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetWorkspaceCards retrieves cards for a workspace.
+func (s *BillingService) GetWorkspaceCards(ctx context.Context) (*CardsResponse, *http.Response, error) {
+	u := "billing/workspace/cards"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cardsResp := new(CardsResponse)
+	resp, err := s.client.Do(ctx, req, cardsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return cardsResp, resp, nil
+}
+
+// CreateWorkspaceBilling creates workspace billing configuration.
+func (s *BillingService) CreateWorkspaceBilling(ctx context.Context) (*http.Response, error) {
+	u := "billing/workspace"
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

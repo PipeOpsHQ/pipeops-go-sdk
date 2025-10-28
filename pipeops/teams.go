@@ -171,3 +171,98 @@ func (s *TeamService) Delete(ctx context.Context, teamUUID string) (*http.Respon
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
 }
+
+// TeamMember represents a team member.
+type TeamMember struct {
+	ID          string     `json:"id,omitempty"`
+	UUID        string     `json:"uuid,omitempty"`
+	Email       string     `json:"email,omitempty"`
+	Role        string     `json:"role,omitempty"`
+	Permissions []string   `json:"permissions,omitempty"`
+	JoinedAt    *Timestamp `json:"joined_at,omitempty"`
+}
+
+// TeamMembersResponse represents team members response.
+type TeamMembersResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Members []TeamMember `json:"members"`
+	} `json:"data"`
+}
+
+// ListMembers lists all members of a team.
+func (s *TeamService) ListMembers(ctx context.Context, teamUUID string) (*TeamMembersResponse, *http.Response, error) {
+	u := fmt.Sprintf("team/%s/members", teamUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	membersResp := new(TeamMembersResponse)
+	resp, err := s.client.Do(ctx, req, membersResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return membersResp, resp, nil
+}
+
+// RemoveMember removes a member from a team.
+func (s *TeamService) RemoveMember(ctx context.Context, teamUUID, memberUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("team/%s/members/%s", teamUUID, memberUUID)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// UpdateMemberRoleRequest represents a request to update member role.
+type UpdateMemberRoleRequest struct {
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions,omitempty"`
+}
+
+// UpdateMemberRole updates a team member's role.
+func (s *TeamService) UpdateMemberRole(ctx context.Context, teamUUID, memberUUID string, req *UpdateMemberRoleRequest) (*http.Response, error) {
+	u := fmt.Sprintf("team/%s/members/%s/role", teamUUID, memberUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// AcceptInvitation accepts a team invitation.
+func (s *TeamService) AcceptInvitation(ctx context.Context, inviteToken string) (*http.Response, error) {
+	u := fmt.Sprintf("team/invite/accept/%s", inviteToken)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// RejectInvitation rejects a team invitation.
+func (s *TeamService) RejectInvitation(ctx context.Context, inviteToken string) (*http.Response, error) {
+	u := fmt.Sprintf("team/invite/reject/%s", inviteToken)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

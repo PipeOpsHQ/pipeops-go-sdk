@@ -34,15 +34,6 @@ type WebhooksResponse struct {
 	} `json:"data"`
 }
 
-// WebhookResponse represents a single webhook response.
-type WebhookResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Webhook Webhook `json:"webhook"`
-	} `json:"data"`
-}
-
 // CreateWebhookRequest represents a request to create a webhook.
 type CreateWebhookRequest struct {
 	URL         string   `json:"url"`

@@ -151,3 +151,108 @@ func (s *AuthService) ChangePassword(ctx context.Context, req *ChangePasswordReq
 
 	return changeResp, resp, nil
 }
+
+// VerifyLoginRequest represents a login verification request.
+type VerifyLoginRequest struct {
+	Email string `json:"email"`
+	Code  string `json:"code"`
+}
+
+// VerifyLogin verifies a login with 2FA code.
+func (s *AuthService) VerifyLogin(ctx context.Context, req *VerifyLoginRequest) (*LoginResponse, *http.Response, error) {
+	u := "auth/verify_login"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	loginResp := new(LoginResponse)
+	resp, err := s.client.Do(ctx, httpReq, loginResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return loginResp, resp, nil
+}
+
+// ActivateEmailRequest represents an email activation request.
+type ActivateEmailRequest struct {
+	Token string `json:"token"`
+}
+
+// ActivateEmail activates a user's email.
+func (s *AuthService) ActivateEmail(ctx context.Context, req *ActivateEmailRequest) (*http.Response, error) {
+	u := "auth/activate_email"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// OAuthSignup initiates OAuth signup with a provider.
+func (s *AuthService) OAuthSignup(ctx context.Context, provider string) (*http.Response, error) {
+	u := "auth/" + provider + "/signup"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// OAuthCallback handles OAuth callback.
+func (s *AuthService) OAuthCallback(ctx context.Context, provider string) (*LoginResponse, *http.Response, error) {
+	u := "auth/" + provider + "/callback"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	loginResp := new(LoginResponse)
+	resp, err := s.client.Do(ctx, req, loginResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return loginResp, resp, nil
+}
+
+// ResetPasswordRequest represents a password reset request.
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+// ResetPassword resets password with a token.
+func (s *AuthService) ResetPassword(ctx context.Context, req *ResetPasswordRequest) (*http.Response, error) {
+	u := "auth/reset_password"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// VerifyPasswordResetToken verifies a password reset token.
+func (s *AuthService) VerifyPasswordResetToken(ctx context.Context, token string) (*http.Response, error) {
+	u := "auth/reset_password/verify/" + token
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

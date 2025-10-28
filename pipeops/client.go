@@ -36,23 +36,32 @@ type Client struct {
 	token string
 
 	// Services used for talking to different parts of the PipeOps API.
-	Auth           *AuthService
-	OAuth          *OAuthService
-	Projects       *ProjectService
-	Servers        *ServerService
-	Environments   *EnvironmentService
-	Teams          *TeamService
-	Workspaces     *WorkspaceService
-	Billing        *BillingService
-	AddOns         *AddOnService
-	Webhooks       *WebhookService
-	Users          *UserService
-	Admin          *AdminService
-	CloudProviders *CloudProviderService
-	Events         *EventService
-	Survey         *SurveyService
-	Partners       *PartnerService
-	Misc           *MiscService
+	Auth                *AuthService
+	OAuth               *OAuthService
+	Projects            *ProjectService
+	Servers             *ServerService
+	Environments        *EnvironmentService
+	Teams               *TeamService
+	Workspaces          *WorkspaceService
+	Billing             *BillingService
+	AddOns              *AddOnService
+	Webhooks            *WebhookService
+	Users               *UserService
+	Admin               *AdminService
+	CloudProviders      *CloudProviderService
+	Events              *EventService
+	Survey              *SurveyService
+	Partners            *PartnerService
+	Misc                *MiscService
+	DeploymentWebhooks  *DeploymentWebhookService
+	Campaign            *CampaignService
+	Coupons             *CouponService
+	Services            *ServiceService
+	PartnerAgreements   *PartnerAgreementService
+	PartnerParticipants *PartnerParticipantService
+	Profile             *ProfileService
+	MCPRegistry         *MCPRegistryService
+	OpenCost            *OpenCostService
 }
 
 // NewClient returns a new PipeOps API client.
@@ -87,6 +96,15 @@ func NewClient(baseURL string) *Client {
 	c.Survey = &SurveyService{client: c}
 	c.Partners = &PartnerService{client: c}
 	c.Misc = &MiscService{client: c}
+	c.DeploymentWebhooks = &DeploymentWebhookService{client: c}
+	c.Campaign = &CampaignService{client: c}
+	c.Coupons = &CouponService{client: c}
+	c.Services = &ServiceService{client: c}
+	c.PartnerAgreements = &PartnerAgreementService{client: c}
+	c.PartnerParticipants = &PartnerParticipantService{client: c}
+	c.Profile = &ProfileService{client: c}
+	c.MCPRegistry = &MCPRegistryService{client: c}
+	c.OpenCost = &OpenCostService{client: c}
 
 	return c
 }

@@ -463,3 +463,196 @@ func (s *MiscService) GetDashboardData(ctx context.Context) (*DashboardDataRespo
 
 	return dashboardResp, resp, nil
 }
+
+// PartnerAgreementService handles partner agreement related methods.
+type PartnerAgreementService struct {
+	client *Client
+}
+
+// PartnerAgreement represents a partner agreement.
+type PartnerAgreement struct {
+	ID          string     `json:"id,omitempty"`
+	UUID        string     `json:"uuid,omitempty"`
+	PartnerUUID string     `json:"partner_uuid,omitempty"`
+	Name        string     `json:"name,omitempty"`
+	Terms       string     `json:"terms,omitempty"`
+	CreatedAt   *Timestamp `json:"created_at,omitempty"`
+}
+
+// PartnerAgreementRequest represents a partner agreement request.
+type PartnerAgreementRequest struct {
+	PartnerUUID string `json:"partner_uuid"`
+	Name        string `json:"name"`
+	Terms       string `json:"terms,omitempty"`
+}
+
+// PartnerAgreementResponse represents a partner agreement response.
+type PartnerAgreementResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Agreement PartnerAgreement `json:"agreement"`
+	} `json:"data"`
+}
+
+// PartnerAgreementsResponse represents partner agreements response.
+type PartnerAgreementsResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Agreements []PartnerAgreement `json:"agreements"`
+	} `json:"data"`
+}
+
+// CreateAgreement creates a partner agreement.
+func (s *PartnerAgreementService) CreateAgreement(ctx context.Context, req *PartnerAgreementRequest) (*PartnerAgreementResponse, *http.Response, error) {
+	u := "partners/agreements"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	agreementResp := new(PartnerAgreementResponse)
+	resp, err := s.client.Do(ctx, httpReq, agreementResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return agreementResp, resp, nil
+}
+
+// UpdateAgreement updates a partner agreement.
+func (s *PartnerAgreementService) UpdateAgreement(ctx context.Context, agreementUUID string, req *PartnerAgreementRequest) (*PartnerAgreementResponse, *http.Response, error) {
+	u := fmt.Sprintf("partners/agreements/%s", agreementUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	agreementResp := new(PartnerAgreementResponse)
+	resp, err := s.client.Do(ctx, httpReq, agreementResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return agreementResp, resp, nil
+}
+
+// GetAgreement gets a partner agreement by UUID.
+func (s *PartnerAgreementService) GetAgreement(ctx context.Context, agreementUUID string) (*PartnerAgreementResponse, *http.Response, error) {
+	u := fmt.Sprintf("partners/agreements/%s", agreementUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	agreementResp := new(PartnerAgreementResponse)
+	resp, err := s.client.Do(ctx, req, agreementResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return agreementResp, resp, nil
+}
+
+// ListAgreements lists all partner agreements.
+func (s *PartnerAgreementService) ListAgreements(ctx context.Context) (*PartnerAgreementsResponse, *http.Response, error) {
+	u := "partners/agreements"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	agreementsResp := new(PartnerAgreementsResponse)
+	resp, err := s.client.Do(ctx, req, agreementsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return agreementsResp, resp, nil
+}
+
+// PartnerParticipantService handles partner participant related methods.
+type PartnerParticipantService struct {
+	client *Client
+}
+
+// ParticipantUploadRequest represents a participant upload request.
+type ParticipantUploadRequest struct {
+	Data map[string]interface{} `json:"data"`
+}
+
+// UploadParticipants uploads participants for an agreement.
+func (s *PartnerParticipantService) UploadParticipants(ctx context.Context, agreementID string, req *ParticipantUploadRequest) (*http.Response, error) {
+	u := fmt.Sprintf("partners/agreements/%s/uploads", agreementID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
+
+// VerifyCodeResponse represents verification code response.
+type VerifyCodeResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Valid bool `json:"valid"`
+	} `json:"data"`
+}
+
+// VerifyProgramCode verifies a program verification code.
+func (s *PartnerParticipantService) VerifyProgramCode(ctx context.Context, code string) (*VerifyCodeResponse, *http.Response, error) {
+	u := "partners/participants/verify?code=" + code
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	verifyResp := new(VerifyCodeResponse)
+	resp, err := s.client.Do(ctx, req, verifyResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return verifyResp, resp, nil
+}
+
+// ProfileService handles profile related methods.
+type ProfileService struct {
+	client *Client
+}
+
+// DeleteProfile deletes the user profile.
+func (s *ProfileService) DeleteProfile(ctx context.Context) (*http.Response, error) {
+	u := "user/delete-profile"
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// CancelProfileDeletion cancels a pending profile deletion.
+func (s *ProfileService) CancelProfileDeletion(ctx context.Context) (*http.Response, error) {
+	u := "user/delete-profile/cancel"
+
+	req, err := s.client.NewRequest(http.MethodPut, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

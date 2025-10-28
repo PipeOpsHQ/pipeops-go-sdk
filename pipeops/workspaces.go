@@ -102,3 +102,58 @@ func (s *WorkspaceService) Get(ctx context.Context, workspaceUUID string) (*Work
 
 	return workspaceResp, resp, nil
 }
+
+// UpdateWorkspaceRequest represents a request to update a workspace.
+type UpdateWorkspaceRequest struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// Update updates a workspace.
+func (s *WorkspaceService) Update(ctx context.Context, workspaceUUID string, req *UpdateWorkspaceRequest) (*WorkspaceResponse, *http.Response, error) {
+	u := fmt.Sprintf("workspace/%s", workspaceUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	workspaceResp := new(WorkspaceResponse)
+	resp, err := s.client.Do(ctx, httpReq, workspaceResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return workspaceResp, resp, nil
+}
+
+// Delete deletes a workspace.
+func (s *WorkspaceService) Delete(ctx context.Context, workspaceUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("workspace/%s", workspaceUUID)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// SetBillingEmailRequest represents a request to set billing email.
+type SetBillingEmailRequest struct {
+	Email string `json:"email"`
+}
+
+// SetBillingEmail sets the billing email for a workspace.
+func (s *WorkspaceService) SetBillingEmail(ctx context.Context, workspaceUUID string, req *SetBillingEmailRequest) (*http.Response, error) {
+	u := fmt.Sprintf("workspace/%s/add-billing-email", workspaceUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
+}
