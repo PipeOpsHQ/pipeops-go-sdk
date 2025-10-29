@@ -60,39 +60,7 @@ func main() {
 }
 ```
 
-## API Coverage
-
-This SDK provides **100% coverage** of the PipeOps API with 284 methods across 18 service modules:
-
-### Core Services (100+ methods)
-- **Projects** (46 methods) - Full CRUD, logs, metrics, network policies, GitHub/GitLab integration, env vars, deployment controls, costs, observability
-- **Billing** (33 methods) - Cards, subscriptions, invoices, usage, balance, credit, history, plans, trials, portal, workspace billing
-- **Servers/Clusters** (22 methods) - CRUD, service tokens, agent operations (register, heartbeat, poll, tunnel status), cost allocation
-- **Cloud Providers** (17 methods) - AWS, GCP, Azure, DigitalOcean, Huawei - full account management, cost calculators, OAuth flows
-
-### Organization & Access (30+ methods)
-- **Teams** (11 methods) - Create, update, invite members, list, get, delete, member management
-- **Admin** (20 methods) - User administration, statistics, plan management, waitlist programs, bulk operations, subscriptions
-- **Workspaces** (6 methods) - Create, list, get, billing email management
-- **User Settings** (8 methods) - Preferences, notifications, profile management, delete profile
-
-### Integrations & Extensions (74+ methods)
-- **Add-Ons** (21 methods) - Submit, deploy, manage deployments, configurations, sessions, domains, bulk operations
-- **Webhooks** (8 methods) - Full CRUD operations
-- **Events & Survey** (23 methods) - Event management, surveys, partners, agreements, participants, profile
-- **DeploymentWebhooks** (3 methods) - GitHub, GitLab, Bitbucket webhooks
-- **Campaign** (7 methods) - Waitlist, hackathon management
-- **OAuth** (4 methods) - Full OAuth 2.0 authorization code flow
-
-### Additional Services (42+ methods)
-- **Service Tokens** (5 methods) - Full CRUD for service account tokens
-- **Environments** (8 methods) - CRUD, environment variable management
-- **Authentication** (10 methods) - Login, signup, verification, password management, OAuth signin
-- **OpenCost** (3 methods) - Cluster and project cost metrics
-- **Coupons** (2 methods) - Create, retrieve coupons
-- **Various** - Logs, notifications, templates, integrations, health checks, backups, security scans, audit logs, alerts
-
-## OAuth 2.0 Support
+# OAuth 2.0 Support
 
 The SDK includes full support for OAuth 2.0 authorization code flow:
 
