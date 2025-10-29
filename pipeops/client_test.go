@@ -80,7 +80,7 @@ func TestClient_DoWithRetry(t *testing.T) {
 		}
 		// Succeed on 3rd attempt
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"success"}`))
+		_, _ = w.Write([]byte(`{"status":"success"}`))
 	}))
 	defer server.Close()
 
@@ -130,7 +130,7 @@ func TestClient_DoWithRateLimit(t *testing.T) {
 
 	ctx := context.Background()
 	_, err = client.Do(ctx, req, nil)
-	
+
 	if err == nil {
 		t.Fatal("Do() expected error for rate limit")
 	}

@@ -391,7 +391,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 		if attempt > 0 {
 			// Calculate backoff delay with jitter
 			waitDuration := c.calculateBackoff(attempt)
-			
+
 			c.logger.Warn("Retrying request",
 				"attempt", attempt,
 				"max_attempts", c.retryConfig.MaxRetries,
@@ -411,13 +411,13 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 		// Clone request for retry (important for request body)
 		reqClone := req.Clone(ctx)
-		
+
 		// Make the request
 		resp, err = c.client.Do(reqClone)
-		
+
 		// Check if we should retry
 		shouldRetry, checkErr := c.retryConfig.RetryPolicy(ctx, resp, err)
-		
+
 		if checkErr != nil {
 			return nil, checkErr
 		}
@@ -428,8 +428,8 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 		// If we have a response, drain and close the body before retrying
 		if resp != nil {
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 		}
 
 		// Don't retry if this was the last attempt
@@ -456,8 +456,8 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 	// Defer closing response body
 	defer func() {
 		// Drain and close body to enable connection reuse
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 
 	// Check for API errors
@@ -494,7 +494,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 func (c *Client) calculateBackoff(attempt int) time.Duration {
 	// Exponential backoff: min * 2^(attempt-1)
 	backoff := float64(c.retryConfig.RetryWaitMin) * math.Pow(2, float64(attempt-1))
-	
+
 	// Cap at max wait time
 	if backoff > float64(c.retryConfig.RetryWaitMax) {
 		backoff = float64(c.retryConfig.RetryWaitMax)
@@ -576,10 +576,10 @@ func parseRateLimitError(r *http.Response) *RateLimitError {
 
 	// Parse rate limit headers if available
 	if limit := r.Header.Get("X-RateLimit-Limit"); limit != "" {
-		fmt.Sscanf(limit, "%d", &err.Limit)
+		_, _ = fmt.Sscanf(limit, "%d", &err.Limit)
 	}
 	if remaining := r.Header.Get("X-RateLimit-Remaining"); remaining != "" {
-		fmt.Sscanf(remaining, "%d", &err.Remaining)
+		_, _ = fmt.Sscanf(remaining, "%d", &err.Remaining)
 	}
 
 	// Default retry after if not specified
