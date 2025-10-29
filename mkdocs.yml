@@ -1,0 +1,108 @@
+site_name: PipeOps Go SDK Documentation
+site_description: Comprehensive documentation for the PipeOps Go SDK
+site_author: PipeOps
+site_url: https://github.com/PipeOpsHQ/pipeops-go-sdk
+
+repo_name: PipeOpsHQ/pipeops-go-sdk
+repo_url: https://github.com/PipeOpsHQ/pipeops-go-sdk
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/PipeOpsHQ
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/PipeOpsHQ
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Configuration: getting-started/configuration.md
+  - Authentication:
+    - Overview: authentication/overview.md
+    - Basic Auth: authentication/basic-auth.md
+    - OAuth 2.0: authentication/oauth.md
+  - API Services:
+    - Overview: api-services/overview.md
+    - Authentication: api-services/auth.md
+    - Projects: api-services/projects.md
+    - Servers: api-services/servers.md
+    - Environments: api-services/environments.md
+    - Teams: api-services/teams.md
+    - Workspaces: api-services/workspaces.md
+    - Billing: api-services/billing.md
+    - Add-ons: api-services/addons.md
+    - Webhooks: api-services/webhooks.md
+    - Users: api-services/users.md
+    - Cloud Providers: api-services/cloudproviders.md
+    - Admin: api-services/admin.md
+    - Service Tokens: api-services/servicetokens.md
+    - Miscellaneous: api-services/misc.md
+  - Advanced Usage:
+    - Error Handling: advanced/error-handling.md
+    - Retries & Timeouts: advanced/retries-timeouts.md
+    - Rate Limiting: advanced/rate-limiting.md
+    - Logging: advanced/logging.md
+    - Custom HTTP Client: advanced/custom-http-client.md
+  - Examples:
+    - Complete Examples: examples/complete-examples.md
+    - Common Patterns: examples/common-patterns.md
+  - API Reference:
+    - Client: reference/client.md
+    - Types: reference/types.md
+    - Errors: reference/errors.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
