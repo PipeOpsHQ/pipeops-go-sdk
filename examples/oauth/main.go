@@ -11,7 +11,10 @@ import (
 
 func main() {
 	// Create a new client
-	client := pipeops.NewClient("")
+	client, err := pipeops.NewClient("")
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
 	ctx := context.Background()
 
