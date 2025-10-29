@@ -7,7 +7,7 @@ on:
 permissions:
     contents: write
     pull-requests: read
-  actions: write
+    actions: write
 
 jobs:
     tag:
