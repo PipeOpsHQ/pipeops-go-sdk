@@ -18,7 +18,6 @@ The PipeOps Go SDK is organized into specialized services, each handling a speci
 | **Webhooks** | Webhook configuration and delivery management | [Guide](webhooks.md) |
 | **Users** | User profile and settings | [Guide](users.md) |
 | **CloudProviders** | Cloud provider integration | [Guide](cloudproviders.md) |
-| **Admin** | Administrative operations (admin only) | [Guide](admin.md) |
 | **ServiceTokens** | Service account token management | [Guide](servicetokens.md) |
 | **Misc** | Miscellaneous utilities | [Guide](misc.md) |
 

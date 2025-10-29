@@ -75,7 +75,6 @@ The SDK is organized into specialized services for different API endpoints:
 | **Webhooks** | Webhook configuration and delivery management |
 | **Users** | User profile and settings |
 | **CloudProviders** | Cloud provider integration |
-| **Admin** | Administrative operations |
 | **ServiceTokens** | Service account token management |
 
 ## Community and Support

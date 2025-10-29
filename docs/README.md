@@ -29,7 +29,6 @@ Complete documentation for all API services:
 - **[Webhooks](api-services/webhooks.md)** - Webhook configuration
 - **[Users](api-services/users.md)** - User profile and settings
 - **[Cloud Providers](api-services/cloudproviders.md)** - Cloud provider integration
-- **[Admin](api-services/admin.md)** - Administrative operations
 - **[Service Tokens](api-services/servicetokens.md)** - Service account tokens
 - **[Miscellaneous](api-services/misc.md)** - Utility endpoints
 

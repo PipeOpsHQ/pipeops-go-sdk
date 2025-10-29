@@ -193,4 +193,3 @@ func main() {
 ## See Also
 
 - [Workspaces Service](workspaces.md)
-- [Admin Service](admin.md)

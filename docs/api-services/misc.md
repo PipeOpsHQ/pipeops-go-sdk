@@ -35,4 +35,4 @@ fmt.Printf("API Version: %s\n", version.Data.Version)
 
 ## See Also
 
-- [Admin Service](admin.md)
+- [API Services Overview](overview.md)

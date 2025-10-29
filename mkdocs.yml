@@ -85,7 +85,6 @@ nav:
     - Webhooks: api-services/webhooks.md
     - Users: api-services/users.md
     - Cloud Providers: api-services/cloudproviders.md
-    - Admin: api-services/admin.md
     - Service Tokens: api-services/servicetokens.md
     - Miscellaneous: api-services/misc.md
   - Advanced Usage:
