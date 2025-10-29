@@ -2,20 +2,6 @@
 
 Welcome to the comprehensive documentation for the PipeOps Go SDK - a powerful, production-ready Go client library for interacting with the PipeOps Control Plane API.
 
-## Features
-
-- ✅ **Complete API Coverage** - All API endpoints covered across 18+ service modules
-- 🔒 **Type-Safe** - Strongly typed request/response structures
-- ⚡ **Context Support** - All methods support context for cancellation and timeouts
-- 🔄 **Automatic Retries** - Built-in retry logic with exponential backoff
-- 🚀 **Production-Ready** - Optimized HTTP client with connection pooling
-- ⚙️ **Configurable** - Flexible configuration via functional options pattern
-- 🛡️ **Rate Limit Handling** - Automatic detection and typed errors
-- 🔐 **OAuth 2.0 Support** - Full OAuth 2.0 authorization code flow
-- 📝 **Logging Support** - Optional logger interface for debugging
-- ✨ **Well-Documented** - Comprehensive examples and documentation
-- 🧪 **Tested** - Unit and integration tests included
-
 ## Quick Links
 
 - [Installation](getting-started/installation.md) - Get started quickly
