@@ -2,8 +2,6 @@
 
 A comprehensive Go SDK for interacting with the PipeOps Control Plane API.
 
-**Status:** ✅ **100% API Coverage** - 284 methods implementing all 262 unique endpoints from the Postman collection
-
 ## Features
 
 - **Complete API Coverage**: All API endpoints covered across 18 service modules
