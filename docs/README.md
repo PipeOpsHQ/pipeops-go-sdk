@@ -1,15 +1,57 @@
 # PipeOps Go SDK Documentation
 
-## Table of Contents
+Welcome to the comprehensive documentation for the PipeOps Go SDK. This documentation is organized into several sections to help you get started quickly and dive deep into advanced features.
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Authentication](#authentication)
-- [Core Concepts](#core-concepts)
-- [API Services](#api-services)
-- [Error Handling](#error-handling)
-- [Advanced Usage](#advanced-usage)
-- [Reference](#reference)
+## 📚 Documentation Structure
+
+### Getting Started
+- **[Installation](getting-started/installation.md)** - Install the SDK in your Go project
+- **[Quick Start](getting-started/quickstart.md)** - Your first API call in 5 minutes
+- **[Configuration](getting-started/configuration.md)** - Configure the client for your needs
+
+### Authentication
+- **[Overview](authentication/overview.md)** - Authentication methods and best practices
+- **[Basic Authentication](authentication/basic-auth.md)** - Email/password authentication
+- **[OAuth 2.0](authentication/oauth.md)** - OAuth 2.0 integration guide
+
+### API Services
+Complete documentation for all API services:
+
+- **[Overview](api-services/overview.md)** - Service architecture and patterns
+- **[Auth](api-services/auth.md)** - User authentication and account management
+- **[Projects](api-services/projects.md)** - Project deployment and management
+- **[Servers](api-services/servers.md)** - Server/cluster management
+- **[Environments](api-services/environments.md)** - Environment configuration
+- **[Teams](api-services/teams.md)** - Team collaboration
+- **[Workspaces](api-services/workspaces.md)** - Workspace organization
+- **[Billing](api-services/billing.md)** - Subscription and payment management
+- **[Add-ons](api-services/addons.md)** - Marketplace add-on deployment
+- **[Webhooks](api-services/webhooks.md)** - Webhook configuration
+- **[Users](api-services/users.md)** - User profile and settings
+- **[Cloud Providers](api-services/cloudproviders.md)** - Cloud provider integration
+- **[Admin](api-services/admin.md)** - Administrative operations
+- **[Service Tokens](api-services/servicetokens.md)** - Service account tokens
+- **[Miscellaneous](api-services/misc.md)** - Utility endpoints
+
+### Advanced Usage
+- **[Error Handling](advanced/error-handling.md)** - Handle errors effectively
+- **[Retries & Timeouts](advanced/retries-timeouts.md)** - Configure retries and timeouts
+- **[Rate Limiting](advanced/rate-limiting.md)** - Handle API rate limits
+- **[Logging](advanced/logging.md)** - Add logging for debugging
+- **[Custom HTTP Client](advanced/custom-http-client.md)** - Use custom HTTP clients
+
+### Examples
+- **[Complete Examples](examples/complete-examples.md)** - Real-world usage examples
+- **[Common Patterns](examples/common-patterns.md)** - Best practices and patterns
+
+### API Reference
+- **[Client](reference/client.md)** - Client type reference
+- **[Types](reference/types.md)** - Common type definitions
+- **[Errors](reference/errors.md)** - Error types and handling
+
+## 🚀 Quick Start
+
+Here's a minimal example to get you started:
 
 ## Installation
 
@@ -263,76 +305,41 @@ if httpResp != nil {
 }
 ```
 
-## Reference
+## 📖 Building Documentation
 
-### Client Configuration
+### View Locally
 
-```go
-type Client struct {
-    BaseURL   *url.URL
-    UserAgent string
-    // ... other fields
-}
+Install MkDocs and serve the documentation locally:
 
-// Create with defaults
-client := pipeops.NewClient("")
+```bash
+# Install dependencies
+pip install mkdocs mkdocs-material pymdown-extensions
 
-// Create with custom base URL
-client := pipeops.NewClient("https://api.pipeops.io")
-
-// Set token
-client.SetToken("your-token")
-
-// Set custom HTTP client
-client.SetHTTPClient(customHTTPClient)
+# Serve documentation at http://127.0.0.1:8000
+mkdocs serve
 ```
 
-### Common Types
+### Build Static Site
 
-```go
-// Timestamp - handles various date/time formats
-type Timestamp struct {
-    time.Time
-}
+Build the documentation as static HTML:
 
-// User
-type User struct {
-    ID            string
-    UUID          string
-    Email         string
-    FirstName     string
-    LastName      string
-    IsActive      bool
-    EmailVerified bool
-    CreatedAt     *Timestamp
-    UpdatedAt     *Timestamp
-}
-
-// Project
-type Project struct {
-    ID            string
-    UUID          string
-    Name          string
-    Description   string
-    Status        string
-    ServerID      string
-    EnvironmentID string
-    WorkspaceID   string
-    Repository    string
-    Branch        string
-    CreatedAt     *Timestamp
-    UpdatedAt     *Timestamp
-}
+```bash
+mkdocs build
 ```
 
-## Examples
+The built site will be in the `site/` directory.
 
-See the [examples](../examples) directory for more detailed usage examples.
+## 🔗 Additional Resources
 
-## Contributing
+- **[GitHub Repository](https://github.com/PipeOpsHQ/pipeops-go-sdk)** - Source code and issues
+- **[Go Package Documentation](https://godoc.org/github.com/PipeOpsHQ/pipeops-go-sdk/pipeops)** - GoDoc reference
+- **[PipeOps API Docs](https://api.pipeops.io/docs)** - Official REST API documentation
+- **[Working Examples](../examples/)** - Runnable code examples
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines on contributing to this SDK.
+## 🤝 Contributing
 
-## License
+We welcome contributions to improve the documentation! Please see [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
-This SDK is distributed under the MIT License. See [LICENSE](../LICENSE) for more information.
+## 📄 License
+
+This SDK is distributed under the terms specified in the [LICENSE](../LICENSE) file.

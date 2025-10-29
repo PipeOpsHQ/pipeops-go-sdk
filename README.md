@@ -167,10 +167,40 @@ See `examples/oauth/` for a complete OAuth flow example.
 
 ## Documentation
 
-For detailed API documentation, please refer to:
-- [API Documentation](docs/README.md) - Comprehensive SDK documentation
-- [Examples](examples/) - Working code examples
-- [PipeOps API Documentation](https://api.pipeops.io/docs) - Official API docs
+Comprehensive documentation is available in multiple formats:
+
+### Online Documentation
+- **[Full Documentation Site](https://pipeops-go-sdk.readthedocs.io/)** - Complete guides, API reference, and examples
+- **[Getting Started Guide](docs/getting-started/quickstart.md)** - Quick start tutorial
+- **[API Reference](https://godoc.org/github.com/PipeOpsHQ/pipeops-go-sdk/pipeops)** - Go package documentation
+
+### Local Documentation
+You can build and view the documentation locally using MkDocs:
+
+```bash
+# Install MkDocs and dependencies
+pip install mkdocs mkdocs-material pymdown-extensions
+
+# Serve documentation locally at http://127.0.0.1:8000
+mkdocs serve
+
+# Or build static HTML
+mkdocs build
+```
+
+### Documentation Sections
+- **[Installation](docs/getting-started/installation.md)** - Installation instructions
+- **[Quick Start](docs/getting-started/quickstart.md)** - Get started in minutes
+- **[Configuration](docs/getting-started/configuration.md)** - Client configuration options
+- **[Authentication](docs/authentication/overview.md)** - Authentication methods and best practices
+- **[API Services](docs/api-services/overview.md)** - Complete API service documentation
+- **[Advanced Usage](docs/advanced/error-handling.md)** - Error handling, retries, logging, etc.
+- **[Examples](docs/examples/complete-examples.md)** - Real-world usage examples
+
+### Additional Resources
+- [Working Code Examples](examples/) - Runnable example applications
+- [PipeOps API Documentation](https://api.pipeops.io/docs) - Official REST API docs
+- [Contributing Guide](CONTRIBUTING.md) - Contribution guidelines
 
 ## Examples
 
