@@ -80,7 +80,8 @@ func TestClient_DoWithRetry(t *testing.T) {
 		}
 		// Succeed on 3rd attempt
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"success"}`))
+		//nolint:errcheck // Test mock server, error not important
+		w.Write([]byte(`{"status":"success"}`))
 	}))
 	defer server.Close()
 
