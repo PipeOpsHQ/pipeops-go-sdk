@@ -29,6 +29,8 @@ Before creating a release, ensure:
 
 Commits merged into the `main` branch automatically trigger the **Auto Tag Release** workflow. It creates the next semantic version tag and pushes it to the repository (default bump is `patch`, `feat` commits bump `minor`). Use `[skip release]` or `[skip tag]` in the commit subject to short-circuit auto-tagging when needed.
 
+After the tag is created, the workflow immediately dispatches the release pipeline so GoReleaser continues to run without manual intervention.
+
 Manual tagging still works when you need a specific version:
 
 ```bash

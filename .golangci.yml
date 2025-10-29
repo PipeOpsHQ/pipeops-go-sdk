@@ -1,5 +1,5 @@
 # golangci-lint configuration
-version: "2"
+version: 2
 
 run:
   timeout: 5m
@@ -24,14 +24,14 @@ linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
-  
+
   gocyclo:
     min-complexity: 15
-  
+
   goconst:
     min-len: 3
     min-occurrences: 3
-  
+
   revive:
     rules:
       - name: exported
