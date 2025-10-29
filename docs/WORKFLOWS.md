@@ -156,7 +156,7 @@ make test     # Run tests
    - Generate changelog
    - Upload artifacts
 
-See [RELEASE.md](../RELEASE.md) for detailed release instructions.
+See the release documentation for detailed release instructions.
 
 ### Testing Release Process
 

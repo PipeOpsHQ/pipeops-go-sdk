@@ -100,7 +100,9 @@ nav:
     - Client: reference/client.md
     - Types: reference/types.md
     - Errors: reference/errors.md
-  - Contributing: contributing.md
+  - Development:
+    - Contributing: contributing.md
+    - Workflows: WORKFLOWS.md
   - Changelog: changelog.md
 
 plugins:
