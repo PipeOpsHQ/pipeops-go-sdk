@@ -12,9 +12,14 @@ A comprehensive Go SDK for interacting with the PipeOps Control Plane API.
 - **Complete API Coverage**: All API endpoints covered across 18 service modules
 - **Type-Safe**: Strongly typed request/response structures
 - **Context Support**: All methods support context for cancellation and timeouts
+- **Automatic Retries**: Built-in retry logic with exponential backoff for transient failures
+- **Production-Ready HTTP Client**: Optimized connection pooling and timeouts
+- **Configurable**: Flexible configuration options via functional options pattern
+- **Rate Limit Handling**: Automatic detection and typed errors for rate limits
 - **OAuth 2.0**: Full OAuth 2.0 authorization code flow support
-- **Flexible**: Custom HTTP client support
+- **Logging Support**: Optional logger interface for debugging
 - **Well-Documented**: Comprehensive examples and documentation
+- **Tested**: Unit and integration tests included
 
 ## Installation
 
@@ -24,6 +29,8 @@ go get github.com/PipeOpsHQ/pipeops-go-sdk
 
 ## Usage
 
+### Basic Usage
+
 ```go
 package main
 
@@ -31,13 +38,17 @@ import (
     "context"
     "fmt"
     "log"
+    "time"
     
     "github.com/PipeOpsHQ/pipeops-go-sdk/pipeops"
 )
 
 func main() {
-    // Create a new client
-    client, err := pipeops.NewClient("https://api.pipeops.io")
+    // Create a new client with custom configuration
+    client, err := pipeops.NewClient("https://api.pipeops.io",
+        pipeops.WithTimeout(30*time.Second),  // Custom timeout
+        pipeops.WithMaxRetries(3),             // Retry failed requests up to 3 times
+    )
     if err != nil {
         log.Fatal(err)
     }
@@ -63,6 +74,64 @@ func main() {
         log.Fatal(err)
     }
     fmt.Printf("Found %d projects\n", len(projects.Data.Projects))
+}
+```
+
+### Configuration Options
+
+The SDK supports various configuration options through the functional options pattern:
+
+```go
+client, err := pipeops.NewClient("https://api.pipeops.io",
+    // Set custom timeout (default: 30s)
+    pipeops.WithTimeout(60*time.Second),
+    
+    // Set max retry attempts (default: 3)
+    pipeops.WithMaxRetries(5),
+    
+    // Use custom HTTP client
+    pipeops.WithHTTPClient(customHTTPClient),
+    
+    // Set custom user agent
+    pipeops.WithUserAgent("my-app/1.0"),
+    
+    // Add custom logger for debugging
+    pipeops.WithLogger(myLogger),
+)
+```
+
+### Error Handling
+
+The SDK provides typed errors for better error handling:
+
+```go
+projects, _, err := client.Projects.List(ctx, nil)
+if err != nil {
+    // Check for rate limit errors
+    if rateLimitErr, ok := err.(*pipeops.RateLimitError); ok {
+        fmt.Printf("Rate limited. Retry after: %v\n", rateLimitErr.RetryAfter)
+        time.Sleep(rateLimitErr.RetryAfter)
+        // Retry request
+    }
+    log.Fatal(err)
+}
+```
+
+### Context and Timeouts
+
+All API methods support context for cancellation and timeouts:
+
+```go
+// Set a timeout for the request
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+projects, _, err := client.Projects.List(ctx, nil)
+if err != nil {
+    if err == context.DeadlineExceeded {
+        log.Println("Request timed out")
+    }
+    log.Fatal(err)
 }
 ```
 

@@ -5,8 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,10 +20,43 @@ import (
 )
 
 const (
-	defaultBaseURL   = "https://api.pipeops.io"
-	defaultUserAgent = "pipeops-go-sdk/1.0.0"
-	defaultTimeout   = 30 * time.Second
+	defaultBaseURL      = "https://api.pipeops.io"
+	defaultUserAgent    = "pipeops-go-sdk/1.0.0"
+	defaultTimeout      = 30 * time.Second
+	defaultMaxRetries   = 3
+	defaultRetryWaitMin = 100 * time.Millisecond
+	defaultRetryWaitMax = 5 * time.Second
 )
+
+// RetryConfig configures retry behavior for failed requests.
+type RetryConfig struct {
+	MaxRetries   int
+	RetryWaitMin time.Duration
+	RetryWaitMax time.Duration
+	RetryPolicy  RetryPolicy
+}
+
+// RetryPolicy determines if a request should be retried.
+type RetryPolicy func(ctx context.Context, resp *http.Response, err error) (bool, error)
+
+// Logger is an interface for logging SDK operations.
+type Logger interface {
+	Debug(msg string, keysAndValues ...interface{})
+	Info(msg string, keysAndValues ...interface{})
+	Warn(msg string, keysAndValues ...interface{})
+	Error(msg string, keysAndValues ...interface{})
+}
+
+// defaultLogger is a no-op logger.
+type defaultLogger struct{}
+
+func (l *defaultLogger) Debug(msg string, keysAndValues ...interface{}) {}
+func (l *defaultLogger) Info(msg string, keysAndValues ...interface{})  {}
+func (l *defaultLogger) Warn(msg string, keysAndValues ...interface{})  {}
+func (l *defaultLogger) Error(msg string, keysAndValues ...interface{}) {}
+
+// ClientOption is a function that configures a Client.
+type ClientOption func(*Client) error
 
 // Client manages communication with the PipeOps API.
 type Client struct {
@@ -34,6 +71,12 @@ type Client struct {
 
 	// Authentication token for API requests.
 	token string
+
+	// Retry configuration
+	retryConfig *RetryConfig
+
+	// Logger for debug output
+	logger Logger
 
 	// Services used for talking to different parts of the PipeOps API.
 	Auth                *AuthService
@@ -74,10 +117,64 @@ type Client struct {
 	ServiceTokens       *ServiceTokenService
 }
 
-// NewClient returns a new PipeOps API client.
+// newHTTPClient creates a properly configured HTTP client for production use.
+func newHTTPClient(timeout time.Duration) *http.Client {
+	transport := &http.Transport{
+		// Connection pool settings for high concurrency
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 100,
+		MaxConnsPerHost:     100,
+		IdleConnTimeout:     90 * time.Second,
+
+		// Timeouts for different phases
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+
+		// Enable HTTP/2
+		ForceAttemptHTTP2: true,
+	}
+
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			return nil
+		},
+	}
+}
+
+// defaultRetryPolicy implements a sensible retry policy for HTTP requests.
+func defaultRetryPolicy(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	// Don't retry if context is done
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
+
+	// Retry on network errors
+	if err != nil {
+		return true, nil
+	}
+
+	// Retry on specific status codes
+	if resp.StatusCode == 0 || resp.StatusCode == 429 || resp.StatusCode >= 500 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// NewClient returns a new PipeOps API client with optional configuration.
 // If baseURL is empty, the default API URL is used.
 // Returns an error if the provided baseURL is invalid.
-func NewClient(baseURL string) (*Client, error) {
+func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	if baseURL == "" {
 		baseURL = defaultBaseURL
 	}
@@ -93,9 +190,23 @@ func NewClient(baseURL string) (*Client, error) {
 	}
 
 	c := &Client{
-		client:    &http.Client{Timeout: defaultTimeout},
+		client:    newHTTPClient(defaultTimeout),
 		BaseURL:   parsedURL,
 		UserAgent: defaultUserAgent,
+		retryConfig: &RetryConfig{
+			MaxRetries:   defaultMaxRetries,
+			RetryWaitMin: defaultRetryWaitMin,
+			RetryWaitMax: defaultRetryWaitMax,
+			RetryPolicy:  defaultRetryPolicy,
+		},
+		logger: &defaultLogger{},
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return nil, fmt.Errorf("failed to apply client option: %w", err)
+		}
 	}
 
 	// Initialize services
@@ -139,10 +250,81 @@ func NewClient(baseURL string) (*Client, error) {
 	return c, nil
 }
 
+// ClientOption functions
+
+// WithHTTPClient sets a custom HTTP client.
+func WithHTTPClient(client *http.Client) ClientOption {
+	return func(c *Client) error {
+		if client == nil {
+			return errors.New("HTTP client cannot be nil")
+		}
+		c.client = client
+		return nil
+	}
+}
+
+// WithTimeout sets the timeout for API requests.
+func WithTimeout(timeout time.Duration) ClientOption {
+	return func(c *Client) error {
+		if timeout <= 0 {
+			return errors.New("timeout must be positive")
+		}
+		c.client = newHTTPClient(timeout)
+		return nil
+	}
+}
+
+// WithRetryConfig sets custom retry configuration.
+func WithRetryConfig(config *RetryConfig) ClientOption {
+	return func(c *Client) error {
+		if config == nil {
+			return errors.New("retry config cannot be nil")
+		}
+		if config.MaxRetries < 0 {
+			return errors.New("max retries must be non-negative")
+		}
+		c.retryConfig = config
+		return nil
+	}
+}
+
+// WithMaxRetries sets the maximum number of retry attempts.
+func WithMaxRetries(maxRetries int) ClientOption {
+	return func(c *Client) error {
+		if maxRetries < 0 {
+			return errors.New("max retries must be non-negative")
+		}
+		c.retryConfig.MaxRetries = maxRetries
+		return nil
+	}
+}
+
+// WithLogger sets a custom logger for the client.
+func WithLogger(logger Logger) ClientOption {
+	return func(c *Client) error {
+		if logger == nil {
+			return errors.New("logger cannot be nil")
+		}
+		c.logger = logger
+		return nil
+	}
+}
+
+// WithUserAgent sets a custom user agent string.
+func WithUserAgent(userAgent string) ClientOption {
+	return func(c *Client) error {
+		if userAgent == "" {
+			return errors.New("user agent cannot be empty")
+		}
+		c.UserAgent = userAgent
+		return nil
+	}
+}
+
 // MustNewClient returns a new PipeOps API client and panics on error.
 // This should only be used in init functions or when you are certain the URL is valid.
-func MustNewClient(baseURL string) *Client {
-	client, err := NewClient(baseURL)
+func MustNewClient(baseURL string, opts ...ClientOption) *Client {
+	client, err := NewClient(baseURL, opts...)
 	if err != nil {
 		panic(err)
 	}
@@ -195,51 +377,134 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 	return req, nil
 }
 
-// Do sends an API request and returns the API response.
-func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (resp *http.Response, err error) {
+// Do sends an API request and returns the API response with automatic retry logic.
+func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("context must be non-nil")
 	}
 
-	req = req.WithContext(ctx)
+	var resp *http.Response
+	var err error
 
-	resp, err = c.client.Do(req)
+	// Retry loop
+	for attempt := 0; attempt <= c.retryConfig.MaxRetries; attempt++ {
+		if attempt > 0 {
+			// Calculate backoff delay with jitter
+			waitDuration := c.calculateBackoff(attempt)
+			
+			c.logger.Warn("Retrying request",
+				"attempt", attempt,
+				"max_attempts", c.retryConfig.MaxRetries,
+				"wait_duration", waitDuration,
+				"method", req.Method,
+				"url", req.URL.String(),
+			)
+
+			// Wait before retry, respecting context cancellation
+			select {
+			case <-time.After(waitDuration):
+				// Continue with retry
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		// Clone request for retry (important for request body)
+		reqClone := req.Clone(ctx)
+		
+		// Make the request
+		resp, err = c.client.Do(reqClone)
+		
+		// Check if we should retry
+		shouldRetry, checkErr := c.retryConfig.RetryPolicy(ctx, resp, err)
+		
+		if checkErr != nil {
+			return nil, checkErr
+		}
+
+		if !shouldRetry {
+			break
+		}
+
+		// If we have a response, drain and close the body before retrying
+		if resp != nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+
+		// Don't retry if this was the last attempt
+		if attempt == c.retryConfig.MaxRetries {
+			c.logger.Error("Max retries exceeded",
+				"attempts", attempt+1,
+				"method", req.Method,
+				"url", req.URL.String(),
+			)
+			break
+		}
+	}
+
+	// Handle request error
 	if err != nil {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
-		return nil, err
+		return nil, fmt.Errorf("request failed after %d attempts: %w", c.retryConfig.MaxRetries+1, err)
 	}
+
+	// Defer closing response body
 	defer func() {
-		closeErr := resp.Body.Close()
-		if err == nil {
-			err = closeErr
-		}
+		// Drain and close body to enable connection reuse
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 	}()
 
+	// Check for API errors
 	if err = CheckResponse(resp); err != nil {
 		return resp, err
 	}
 
+	// Decode response if needed
 	if v != nil {
 		if w, ok := v.(io.Writer); ok {
-			if _, copyErr := io.Copy(w, resp.Body); copyErr != nil && err == nil {
-				err = copyErr
+			if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
+				return resp, fmt.Errorf("failed to copy response: %w", copyErr)
 			}
 		} else {
-			decErr := json.NewDecoder(resp.Body).Decode(v)
-			if decErr == io.EOF {
-				decErr = nil // ignore EOF errors caused by empty response body
+			// Read body for decoding
+			bodyBytes, readErr := io.ReadAll(resp.Body)
+			if readErr != nil {
+				return resp, fmt.Errorf("failed to read response body: %w", readErr)
 			}
-			if decErr != nil {
-				err = decErr
+
+			// Decode if we have content
+			if len(bodyBytes) > 0 {
+				if decErr := json.Unmarshal(bodyBytes, v); decErr != nil {
+					return resp, fmt.Errorf("failed to decode response: %w", decErr)
+				}
 			}
 		}
 	}
 
-	return resp, err
+	return resp, nil
+}
+
+// calculateBackoff calculates the backoff duration with exponential backoff and jitter.
+func (c *Client) calculateBackoff(attempt int) time.Duration {
+	// Exponential backoff: min * 2^(attempt-1)
+	backoff := float64(c.retryConfig.RetryWaitMin) * math.Pow(2, float64(attempt-1))
+	
+	// Cap at max wait time
+	if backoff > float64(c.retryConfig.RetryWaitMax) {
+		backoff = float64(c.retryConfig.RetryWaitMax)
+	}
+
+	// Add jitter (±10% randomness to prevent thundering herd)
+	jitter := backoff * 0.1 * (rand.Float64()*2 - 1)
+	backoff += jitter
+
+	return time.Duration(backoff)
 }
 
 // ErrorResponse represents an error response from the PipeOps API.
@@ -261,6 +526,11 @@ func CheckResponse(r *http.Response) error {
 		return nil
 	}
 
+	// Handle rate limiting specially
+	if r.StatusCode == 429 {
+		return parseRateLimitError(r)
+	}
+
 	errorResponse := &ErrorResponse{Response: r}
 	data, err := io.ReadAll(r.Body)
 	if err == nil && data != nil {
@@ -275,6 +545,49 @@ func CheckResponse(r *http.Response) error {
 	}
 
 	return errorResponse
+}
+
+// RateLimitError represents a rate limit error from the API.
+type RateLimitError struct {
+	Response   *http.Response
+	RetryAfter time.Duration
+	Limit      int
+	Remaining  int
+	Reset      time.Time
+}
+
+func (e *RateLimitError) Error() string {
+	return fmt.Sprintf("rate limit exceeded: retry after %v (limit: %d, remaining: %d)",
+		e.RetryAfter, e.Limit, e.Remaining)
+}
+
+// parseRateLimitError parses rate limit information from response headers.
+func parseRateLimitError(r *http.Response) *RateLimitError {
+	err := &RateLimitError{
+		Response: r,
+	}
+
+	// Parse Retry-After header (seconds or HTTP date)
+	if retryAfter := r.Header.Get("Retry-After"); retryAfter != "" {
+		if seconds, parseErr := time.ParseDuration(retryAfter + "s"); parseErr == nil {
+			err.RetryAfter = seconds
+		}
+	}
+
+	// Parse rate limit headers if available
+	if limit := r.Header.Get("X-RateLimit-Limit"); limit != "" {
+		fmt.Sscanf(limit, "%d", &err.Limit)
+	}
+	if remaining := r.Header.Get("X-RateLimit-Remaining"); remaining != "" {
+		fmt.Sscanf(remaining, "%d", &err.Remaining)
+	}
+
+	// Default retry after if not specified
+	if err.RetryAfter == 0 {
+		err.RetryAfter = 60 * time.Second
+	}
+
+	return err
 }
 
 // addOptions adds the parameters in opts as URL query parameters to s.
