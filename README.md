@@ -7,19 +7,6 @@
 
 A comprehensive Go SDK for interacting with the PipeOps Control Plane API.
 
-## Features
-
-- **Complete API Coverage**: All API endpoints covered across 18 service modules
-- **Type-Safe**: Strongly typed request/response structures
-- **Context Support**: All methods support context for cancellation and timeouts
-- **Automatic Retries**: Built-in retry logic with exponential backoff for transient failures
-- **Production-Ready HTTP Client**: Optimized connection pooling and timeouts
-- **Configurable**: Flexible configuration options via functional options pattern
-- **Rate Limit Handling**: Automatic detection and typed errors for rate limits
-- **OAuth 2.0**: Full OAuth 2.0 authorization code flow support
-- **Logging Support**: Optional logger interface for debugging
-- **Well-Documented**: Comprehensive examples and documentation
-- **Tested**: Unit and integration tests included
 
 ## Installation
 
