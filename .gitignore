@@ -36,3 +36,8 @@ Thumbs.db
 dist/
 coverage.txt
 coverage.html
+
+# Code review files
+CODE_REVIEW_SUMMARY.md
+.opencode/
+opencode.json
