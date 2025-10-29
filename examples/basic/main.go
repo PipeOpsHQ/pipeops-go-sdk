@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/PipeOpsHQ/pipeops-go-sdk/pipeops"
 )
 
 func main() {
-	// Create a new client
-	client, err := pipeops.NewClient("")
+	// Create a new client with custom configuration
+	client, err := pipeops.NewClient("",
+		pipeops.WithTimeout(60*time.Second),  // Custom timeout
+		pipeops.WithMaxRetries(5),            // Retry up to 5 times
+	)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
@@ -24,8 +28,10 @@ func main() {
 		log.Fatal("Please set PIPEOPS_EMAIL and PIPEOPS_PASSWORD environment variables")
 	}
 
-	// Login to get an authentication token
-	ctx := context.Background()
+	// Login to get an authentication token with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
 	loginReq := &pipeops.LoginRequest{
 		Email:    email,
 		Password: password,
