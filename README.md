@@ -178,13 +178,14 @@ Comprehensive documentation is available in multiple formats:
 You can build and view the documentation locally using MkDocs:
 
 ```bash
-# Install MkDocs and dependencies
-pip install mkdocs mkdocs-material pymdown-extensions
+# Quick start with helper script
+./docs.sh install  # Install dependencies
+./docs.sh serve    # Serve at http://127.0.0.1:8000
+./docs.sh build    # Build static HTML
 
-# Serve documentation locally at http://127.0.0.1:8000
+# Or use MkDocs directly
+pip install -r docs/requirements.txt
 mkdocs serve
-
-# Or build static HTML
 mkdocs build
 ```
 
