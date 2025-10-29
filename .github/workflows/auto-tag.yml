@@ -1,0 +1,63 @@
+name: Auto Tag Release
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    contents: write
+    pull-requests: read
+
+jobs:
+    tag:
+        name: Tag and Trigger Release
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+
+            - name: Detect skip flag
+              id: skip
+              run: |
+                  last_commit_msg=$(git log -1 --pretty=%s)
+                  if printf '%s' "$last_commit_msg" | grep -qiE '\\[skip (release|tag)\\]'; then
+                    echo "skip=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "skip=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Bump version and push tag
+              id: tag
+              if: steps.skip.outputs.skip != 'true'
+              uses: mathieudutour/github-tag-action@v6.2
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  release_branches: main
+                  default_bump: patch
+                  custom_release_rules: |
+                      fix:patch
+                      feat:minor
+                      perf:patch
+                      refactor:patch
+                      style:patch
+                      test:patch
+                      docs:patch
+                      chore:patch
+                  tag_prefix: v
+                  append_to_pre_release_tag: ""
+
+            - name: Summary
+              if: steps.tag.outputs.new_tag != ''
+              run: |
+                  {
+                    echo "## Auto-tag summary"
+                    echo "- Created tag: ${{ steps.tag.outputs.new_tag }}"
+                    if [ -n "${{ steps.tag.outputs.changelog }}" ]; then
+                      echo "- Changelog:"
+                      echo '```'
+                      echo "${{ steps.tag.outputs.changelog }}"
+                      echo '```'
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
