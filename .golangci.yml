@@ -1,4 +1,6 @@
 # golangci-lint configuration
+version: 2
+
 run:
   timeout: 5m
   tests: true
@@ -7,20 +9,16 @@ run:
 linters:
   enable:
     - errcheck      # Checking for unchecked errors
-    - gosimple      # Simplify code
     - govet         # Reports suspicious constructs
     - ineffassign   # Detects ineffectual assignments
-    - staticcheck   # Static analysis
+    - staticcheck   # Static analysis (includes gosimple and stylecheck)
     - unused        # Checks for unused code
-    - gofmt         # Checks code formatting
-    - goimports     # Checks import formatting
     - misspell      # Finds commonly misspelled words
     - revive        # Fast, configurable, extensible linter
     - unconvert     # Remove unnecessary type conversions
     - unparam       # Reports unused function parameters
     - goconst       # Finds repeated strings that could be constants
     - gocyclo       # Computes cyclomatic complexity
-    - stylecheck    # Replacement for golint
 
 linters-settings:
   errcheck:
