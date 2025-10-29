@@ -1,5 +1,10 @@
 # PipeOps Go SDK
 
+[![CI](https://github.com/PipeOpsHQ/pipeops-go-sdk/workflows/CI/badge.svg)](https://github.com/PipeOpsHQ/pipeops-go-sdk/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/PipeOpsHQ/pipeops-go-sdk)](https://goreportcard.com/report/github.com/PipeOpsHQ/pipeops-go-sdk)
+[![GoDoc](https://godoc.org/github.com/PipeOpsHQ/pipeops-go-sdk?status.svg)](https://godoc.org/github.com/PipeOpsHQ/pipeops-go-sdk/pipeops)
+[![License](https://img.shields.io/github/license/PipeOpsHQ/pipeops-go-sdk)](LICENSE)
+
 A comprehensive Go SDK for interacting with the PipeOps Control Plane API.
 
 ## Features
