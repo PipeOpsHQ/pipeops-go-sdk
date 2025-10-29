@@ -96,6 +96,73 @@ func (s *BillingService) DeleteCard(ctx context.Context, cardUUID string) (*http
 	return resp, err
 }
 
+// UpdateCard updates a payment card.
+func (s *BillingService) UpdateCard(ctx context.Context, cardUUID string, req *AddCardRequest) (*CardResponse, *http.Response, error) {
+	u := fmt.Sprintf("billing/workspace/cards%s", cardUUID)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cardResp := new(CardResponse)
+	resp, err := s.client.Do(ctx, httpReq, cardResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return cardResp, resp, nil
+}
+
+// ListWorkspaceCards lists workspace payment cards.
+func (s *BillingService) ListWorkspaceCards(ctx context.Context) (*CardsResponse, *http.Response, error) {
+	u := "billing/workspace/cards"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cardsResp := new(CardsResponse)
+	resp, err := s.client.Do(ctx, req, cardsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return cardsResp, resp, nil
+}
+
+// GetActiveCard retrieves the active workspace billing card.
+func (s *BillingService) GetActiveCard(ctx context.Context) (*CardResponse, *http.Response, error) {
+	u := "billing/workspace/cards/active"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cardResp := new(CardResponse)
+	resp, err := s.client.Do(ctx, req, cardResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return cardResp, resp, nil
+}
+
+// GetUsagePlanProviders retrieves usage plan providers.
+func (s *BillingService) GetUsagePlanProviders(ctx context.Context) (*http.Response, error) {
+	u := "billing/usage-plan-providers"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
 // Subscription represents a billing subscription.
 type Subscription struct {
 	ID        string     `json:"id,omitempty"`
@@ -371,24 +438,6 @@ func (s *BillingService) SetActiveCard(ctx context.Context, cardUUID string) (*h
 
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
-}
-
-// GetActiveCard retrieves the active billing card.
-func (s *BillingService) GetActiveCard(ctx context.Context) (*CardResponse, *http.Response, error) {
-	u := "billing/workspace/cards/active"
-
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cardResp := new(CardResponse)
-	resp, err := s.client.Do(ctx, req, cardResp)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return cardResp, resp, nil
 }
 
 // CreateFreeServerRequest represents a request to create a free server.

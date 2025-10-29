@@ -693,336 +693,327 @@ func (s *HealthCheckService) CheckDatabaseHealth(ctx context.Context) (*HealthCh
 
 // BackupService handles backup and restore related methods.
 type BackupService struct {
-client *Client
+	client *Client
 }
 
 // Backup represents a backup.
 type Backup struct {
-ID        string     `json:"id,omitempty"`
-UUID      string     `json:"uuid,omitempty"`
-ProjectID string     `json:"project_id,omitempty"`
-Type      string     `json:"type,omitempty"`
-Status    string     `json:"status,omitempty"`
-Size      int64      `json:"size,omitempty"`
-CreatedAt *Timestamp `json:"created_at,omitempty"`
+	ID        string     `json:"id,omitempty"`
+	UUID      string     `json:"uuid,omitempty"`
+	ProjectID string     `json:"project_id,omitempty"`
+	Type      string     `json:"type,omitempty"`
+	Status    string     `json:"status,omitempty"`
+	Size      int64      `json:"size,omitempty"`
+	CreatedAt *Timestamp `json:"created_at,omitempty"`
 }
 
 // BackupsResponse represents backups response.
 type BackupsResponse struct {
-Status  string `json:"status"`
-Message string `json:"message"`
-Data    struct {
-Backups []Backup `json:"backups"`
-} `json:"data"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Backups []Backup `json:"backups"`
+	} `json:"data"`
 }
 
 // CreateBackup creates a new backup.
 func (s *BackupService) CreateBackup(ctx context.Context, projectUUID string) (*http.Response, error) {
-u := fmt.Sprintf("backups/projects/%s", projectUUID)
+	u := fmt.Sprintf("backups/projects/%s", projectUUID)
 
-req, err := s.client.NewRequest(http.MethodPost, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }
 
 // ListBackups lists all backups for a project.
 func (s *BackupService) ListBackups(ctx context.Context, projectUUID string) (*BackupsResponse, *http.Response, error) {
-u := fmt.Sprintf("backups/projects/%s", projectUUID)
+	u := fmt.Sprintf("backups/projects/%s", projectUUID)
 
-req, err := s.client.NewRequest(http.MethodGet, u, nil)
-if err != nil {
-return nil, nil, err
-}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
 
-backupsResp := new(BackupsResponse)
-resp, err := s.client.Do(ctx, req, backupsResp)
-if err != nil {
-return nil, resp, err
-}
+	backupsResp := new(BackupsResponse)
+	resp, err := s.client.Do(ctx, req, backupsResp)
+	if err != nil {
+		return nil, resp, err
+	}
 
-return backupsResp, resp, nil
+	return backupsResp, resp, nil
 }
 
 // RestoreBackup restores a backup.
 func (s *BackupService) RestoreBackup(ctx context.Context, backupUUID string) (*http.Response, error) {
-u := fmt.Sprintf("backups/%s/restore", backupUUID)
+	u := fmt.Sprintf("backups/%s/restore", backupUUID)
 
-req, err := s.client.NewRequest(http.MethodPost, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }
 
 // DeleteBackup deletes a backup.
 func (s *BackupService) DeleteBackup(ctx context.Context, backupUUID string) (*http.Response, error) {
-u := fmt.Sprintf("backups/%s", backupUUID)
+	u := fmt.Sprintf("backups/%s", backupUUID)
 
-req, err := s.client.NewRequest(http.MethodDelete, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }
 
 // SecurityScanService handles security scanning related methods.
 type SecurityScanService struct {
-client *Client
+	client *Client
 }
 
 // ScanResult represents a security scan result.
 type ScanResult struct {
-ID           string     `json:"id,omitempty"`
-UUID         string     `json:"uuid,omitempty"`
-ProjectID    string     `json:"project_id,omitempty"`
-Severity     string     `json:"severity,omitempty"`
-Vulnerabilities int     `json:"vulnerabilities,omitempty"`
-Status       string     `json:"status,omitempty"`
-ScannedAt    *Timestamp `json:"scanned_at,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	UUID            string     `json:"uuid,omitempty"`
+	ProjectID       string     `json:"project_id,omitempty"`
+	Severity        string     `json:"severity,omitempty"`
+	Vulnerabilities int        `json:"vulnerabilities,omitempty"`
+	Status          string     `json:"status,omitempty"`
+	ScannedAt       *Timestamp `json:"scanned_at,omitempty"`
 }
 
 // ScanResultsResponse represents scan results response.
 type ScanResultsResponse struct {
-Status  string `json:"status"`
-Message string `json:"message"`
-Data    struct {
-Results []ScanResult `json:"results"`
-} `json:"data"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Results []ScanResult `json:"results"`
+	} `json:"data"`
 }
 
 // ScanProject initiates a security scan for a project.
 func (s *SecurityScanService) ScanProject(ctx context.Context, projectUUID string) (*http.Response, error) {
-u := fmt.Sprintf("security/scan/projects/%s", projectUUID)
+	u := fmt.Sprintf("security/scan/projects/%s", projectUUID)
 
-req, err := s.client.NewRequest(http.MethodPost, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }
 
 // GetScanResults retrieves scan results for a project.
 func (s *SecurityScanService) GetScanResults(ctx context.Context, projectUUID string) (*ScanResultsResponse, *http.Response, error) {
-u := fmt.Sprintf("security/scan/projects/%s/results", projectUUID)
+	u := fmt.Sprintf("security/scan/projects/%s/results", projectUUID)
 
-req, err := s.client.NewRequest(http.MethodGet, u, nil)
-if err != nil {
-return nil, nil, err
-}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
 
-resultsResp := new(ScanResultsResponse)
-resp, err := s.client.Do(ctx, req, resultsResp)
-if err != nil {
-return nil, resp, err
-}
+	resultsResp := new(ScanResultsResponse)
+	resp, err := s.client.Do(ctx, req, resultsResp)
+	if err != nil {
+		return nil, resp, err
+	}
 
-return resultsResp, resp, nil
+	return resultsResp, resp, nil
 }
 
 // LogService handles centralized logging related methods.
 type LogService struct {
-client *Client
+	client *Client
 }
 
 // LogQuery represents a log query request.
 type LogQuery struct {
-Query     string `json:"query,omitempty"`
-StartTime string `json:"start_time,omitempty"`
-EndTime   string `json:"end_time,omitempty"`
-Limit     int    `json:"limit,omitempty"`
-}
-
-// LogsResponse represents logs response.
-type LogsResponse struct {
-Status  string `json:"status"`
-Message string `json:"message"`
-Data    struct {
-Logs []map[string]interface{} `json:"logs"`
-} `json:"data"`
+	Query     string `json:"query,omitempty"`
+	StartTime string `json:"start_time,omitempty"`
+	EndTime   string `json:"end_time,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
 }
 
 // QueryLogs queries logs across projects.
 func (s *LogService) QueryLogs(ctx context.Context, req *LogQuery) (*LogsResponse, *http.Response, error) {
-u := "logs/query"
+	u := "logs/query"
 
-httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
-if err != nil {
-return nil, nil, err
-}
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
 
-logsResp := new(LogsResponse)
-resp, err := s.client.Do(ctx, httpReq, logsResp)
-if err != nil {
-return nil, resp, err
-}
+	logsResp := new(LogsResponse)
+	resp, err := s.client.Do(ctx, httpReq, logsResp)
+	if err != nil {
+		return nil, resp, err
+	}
 
-return logsResp, resp, nil
+	return logsResp, resp, nil
 }
 
 // StreamLogs streams logs in real-time.
 func (s *LogService) StreamLogs(ctx context.Context, projectUUID string) (*http.Response, error) {
-u := fmt.Sprintf("logs/stream/projects/%s", projectUUID)
+	u := fmt.Sprintf("logs/stream/projects/%s", projectUUID)
 
-req, err := s.client.NewRequest(http.MethodGet, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }
 
 // AuditLogService handles audit log related methods.
 type AuditLogService struct {
-client *Client
+	client *Client
 }
 
 // AuditLog represents an audit log entry.
 type AuditLog struct {
-ID         string     `json:"id,omitempty"`
-UUID       string     `json:"uuid,omitempty"`
-UserID     string     `json:"user_id,omitempty"`
-Action     string     `json:"action,omitempty"`
-Resource   string     `json:"resource,omitempty"`
-IPAddress  string     `json:"ip_address,omitempty"`
-CreatedAt  *Timestamp `json:"created_at,omitempty"`
+	ID        string     `json:"id,omitempty"`
+	UUID      string     `json:"uuid,omitempty"`
+	UserID    string     `json:"user_id,omitempty"`
+	Action    string     `json:"action,omitempty"`
+	Resource  string     `json:"resource,omitempty"`
+	IPAddress string     `json:"ip_address,omitempty"`
+	CreatedAt *Timestamp `json:"created_at,omitempty"`
 }
 
 // AuditLogsResponse represents audit logs response.
 type AuditLogsResponse struct {
-Status  string `json:"status"`
-Message string `json:"message"`
-Data    struct {
-Logs []AuditLog `json:"logs"`
-} `json:"data"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Logs []AuditLog `json:"logs"`
+	} `json:"data"`
 }
 
 // ListAuditLogs lists audit logs.
 func (s *AuditLogService) ListAuditLogs(ctx context.Context) (*AuditLogsResponse, *http.Response, error) {
-u := "audit/logs"
+	u := "audit/logs"
 
-req, err := s.client.NewRequest(http.MethodGet, u, nil)
-if err != nil {
-return nil, nil, err
-}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
 
-logsResp := new(AuditLogsResponse)
-resp, err := s.client.Do(ctx, req, logsResp)
-if err != nil {
-return nil, resp, err
-}
+	logsResp := new(AuditLogsResponse)
+	resp, err := s.client.Do(ctx, req, logsResp)
+	if err != nil {
+		return nil, resp, err
+	}
 
-return logsResp, resp, nil
+	return logsResp, resp, nil
 }
 
 // GetAuditLog gets a specific audit log entry.
 func (s *AuditLogService) GetAuditLog(ctx context.Context, logUUID string) (*http.Response, error) {
-u := fmt.Sprintf("audit/logs/%s", logUUID)
+	u := fmt.Sprintf("audit/logs/%s", logUUID)
 
-req, err := s.client.NewRequest(http.MethodGet, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }
 
 // AlertService handles alert and monitoring related methods.
 type AlertService struct {
-client *Client
+	client *Client
 }
 
 // Alert represents an alert.
 type Alert struct {
-ID        string     `json:"id,omitempty"`
-UUID      string     `json:"uuid,omitempty"`
-Type      string     `json:"type,omitempty"`
-Severity  string     `json:"severity,omitempty"`
-Message   string     `json:"message,omitempty"`
-Resolved  bool       `json:"resolved,omitempty"`
-CreatedAt *Timestamp `json:"created_at,omitempty"`
+	ID        string     `json:"id,omitempty"`
+	UUID      string     `json:"uuid,omitempty"`
+	Type      string     `json:"type,omitempty"`
+	Severity  string     `json:"severity,omitempty"`
+	Message   string     `json:"message,omitempty"`
+	Resolved  bool       `json:"resolved,omitempty"`
+	CreatedAt *Timestamp `json:"created_at,omitempty"`
 }
 
 // AlertsResponse represents alerts response.
 type AlertsResponse struct {
-Status  string `json:"status"`
-Message string `json:"message"`
-Data    struct {
-Alerts []Alert `json:"alerts"`
-} `json:"data"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Alerts []Alert `json:"alerts"`
+	} `json:"data"`
 }
 
 // CreateAlertRequest represents create alert request.
 type CreateAlertRequest struct {
-Type      string `json:"type"`
-Threshold int    `json:"threshold"`
-ProjectID string `json:"project_id,omitempty"`
+	Type      string `json:"type"`
+	Threshold int    `json:"threshold"`
+	ProjectID string `json:"project_id,omitempty"`
 }
 
 // CreateAlert creates a new alert rule.
 func (s *AlertService) CreateAlert(ctx context.Context, req *CreateAlertRequest) (*http.Response, error) {
-u := "alerts"
+	u := "alerts"
 
-httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
-if err != nil {
-return nil, err
-}
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, httpReq, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, httpReq, nil)
+	return resp, err
 }
 
 // ListAlerts lists all alerts.
 func (s *AlertService) ListAlerts(ctx context.Context) (*AlertsResponse, *http.Response, error) {
-u := "alerts"
+	u := "alerts"
 
-req, err := s.client.NewRequest(http.MethodGet, u, nil)
-if err != nil {
-return nil, nil, err
-}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
 
-alertsResp := new(AlertsResponse)
-resp, err := s.client.Do(ctx, req, alertsResp)
-if err != nil {
-return nil, resp, err
-}
+	alertsResp := new(AlertsResponse)
+	resp, err := s.client.Do(ctx, req, alertsResp)
+	if err != nil {
+		return nil, resp, err
+	}
 
-return alertsResp, resp, nil
+	return alertsResp, resp, nil
 }
 
 // ResolveAlert resolves an alert.
 func (s *AlertService) ResolveAlert(ctx context.Context, alertUUID string) (*http.Response, error) {
-u := fmt.Sprintf("alerts/%s/resolve", alertUUID)
+	u := fmt.Sprintf("alerts/%s/resolve", alertUUID)
 
-req, err := s.client.NewRequest(http.MethodPost, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }
 
 // DeleteAlert deletes an alert rule.
 func (s *AlertService) DeleteAlert(ctx context.Context, alertUUID string) (*http.Response, error) {
-u := fmt.Sprintf("alerts/%s", alertUUID)
+	u := fmt.Sprintf("alerts/%s", alertUUID)
 
-req, err := s.client.NewRequest(http.MethodDelete, u, nil)
-if err != nil {
-return nil, err
-}
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-resp, err := s.client.Do(ctx, req, nil)
-return resp, err
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
 }

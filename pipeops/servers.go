@@ -463,3 +463,29 @@ func (s *ServerService) DeregisterAgent(ctx context.Context, clusterUUID string)
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
 }
+
+// PollAgent polls for agent tasks.
+func (s *ServerService) PollAgent(ctx context.Context, clusterUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("api/v1/clusters/agent/%s/poll", clusterUUID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetAgentTunnelStatus gets the tunnel status for an agent.
+func (s *ServerService) GetAgentTunnelStatus(ctx context.Context, agentID string) (*http.Response, error) {
+	u := fmt.Sprintf("api/agents/%s/tunnel/status", agentID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}

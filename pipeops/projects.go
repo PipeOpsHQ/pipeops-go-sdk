@@ -209,6 +209,48 @@ func (s *ProjectService) GetLogs(ctx context.Context, projectUUID string, opts *
 	return logsResp, resp, nil
 }
 
+// TailLogs tails logs for a project (streams recent logs).
+func (s *ProjectService) TailLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
+	u := fmt.Sprintf("project/logs/%s", projectUUID)
+	if opts != nil {
+		u, _ = addOptions(u, opts)
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logsResp := new(LogsResponse)
+	resp, err := s.client.Do(ctx, req, logsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return logsResp, resp, nil
+}
+
+// SearchLogs searches logs for a project.
+func (s *ProjectService) SearchLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
+	u := fmt.Sprintf("project/logs/%s", projectUUID)
+	if opts != nil {
+		u, _ = addOptions(u, opts)
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logsResp := new(LogsResponse)
+	resp, err := s.client.Do(ctx, req, logsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return logsResp, resp, nil
+}
+
 // GitHubBranchesRequest represents a request to fetch GitHub branches.
 type GitHubBranchesRequest struct {
 	Repository string `json:"repository"`

@@ -71,6 +71,7 @@ type Client struct {
 	Logs                *LogService
 	AuditLogs           *AuditLogService
 	Alerts              *AlertService
+	ServiceTokens       *ServiceTokenService
 }
 
 // NewClient returns a new PipeOps API client.
@@ -123,6 +124,7 @@ func NewClient(baseURL string) *Client {
 	c.Logs = &LogService{client: c}
 	c.AuditLogs = &AuditLogService{client: c}
 	c.Alerts = &AlertService{client: c}
+	c.ServiceTokens = &ServiceTokenService{client: c}
 
 	return c
 }

@@ -218,9 +218,35 @@ func (s *CloudProviderService) AddDigitalOceanAccount(ctx context.Context, req *
 
 // DeleteDigitalOceanAccount deletes a DigitalOcean account.
 func (s *CloudProviderService) DeleteDigitalOceanAccount(ctx context.Context, accountUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("digitalocean/%s", accountUUID)
+	u := fmt.Sprintf("auth/digital-ocean/%s", accountUUID)
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// GetDigitalOceanToken exchanges authorization code for token.
+func (s *CloudProviderService) GetDigitalOceanToken(ctx context.Context) (*http.Response, error) {
+	u := "auth/digital-ocean/token"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// InitializeDigitalOceanAuthFlow initializes the DigitalOcean OAuth flow.
+func (s *CloudProviderService) InitializeDigitalOceanAuthFlow(ctx context.Context) (*http.Response, error) {
+	u := "auth/digital-ocean/authorize"
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err
 	}

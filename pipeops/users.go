@@ -176,3 +176,29 @@ func (s *UserService) ResetSecretToken(ctx context.Context) (*http.Response, err
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
 }
+
+// DeleteProfile initiates user profile deletion.
+func (s *UserService) DeleteProfile(ctx context.Context) (*http.Response, error) {
+	u := "user/delete-profile"
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
+
+// CancelProfileDeletion cancels a pending profile deletion request.
+func (s *UserService) CancelProfileDeletion(ctx context.Context) (*http.Response, error) {
+	u := "user/delete-profile/cancel"
+
+	req, err := s.client.NewRequest(http.MethodPut, u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.client.Do(ctx, req, nil)
+	return resp, err
+}
