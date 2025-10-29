@@ -428,8 +428,10 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 		// If we have a response, drain and close the body before retrying
 		if resp != nil {
-			_, _ = io.Copy(io.Discard, resp.Body)
-			_ = resp.Body.Close()
+			//nolint:errcheck // Best effort drain before retry
+			io.Copy(io.Discard, resp.Body)
+			//nolint:errcheck // Best effort close before retry
+			resp.Body.Close()
 		}
 
 		// Don't retry if this was the last attempt
@@ -456,8 +458,10 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 	// Defer closing response body
 	defer func() {
 		// Drain and close body to enable connection reuse
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
+		//nolint:errcheck // Best effort drain for connection reuse
+		io.Copy(io.Discard, resp.Body)
+		//nolint:errcheck // Best effort close for connection reuse
+		resp.Body.Close()
 	}()
 
 	// Check for API errors
@@ -576,10 +580,12 @@ func parseRateLimitError(r *http.Response) *RateLimitError {
 
 	// Parse rate limit headers if available
 	if limit := r.Header.Get("X-RateLimit-Limit"); limit != "" {
-		_, _ = fmt.Sscanf(limit, "%d", &err.Limit)
+		//nolint:errcheck // Best effort parse, defaults used if parse fails
+		fmt.Sscanf(limit, "%d", &err.Limit)
 	}
 	if remaining := r.Header.Get("X-RateLimit-Remaining"); remaining != "" {
-		_, _ = fmt.Sscanf(remaining, "%d", &err.Remaining)
+		//nolint:errcheck // Best effort parse, defaults used if parse fails
+		fmt.Sscanf(remaining, "%d", &err.Remaining)
 	}
 
 	// Default retry after if not specified
