@@ -80,7 +80,13 @@ func NewClient(baseURL string) *Client {
 		baseURL = defaultBaseURL
 	}
 
-	parsedURL, _ := url.Parse(baseURL)
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		parsedURL, err = url.Parse(defaultBaseURL)
+		if err != nil {
+			panic(fmt.Sprintf("invalid default base URL %q: %v", defaultBaseURL, err))
+		}
+	}
 
 	c := &Client{
 		client:    &http.Client{Timeout: defaultTimeout},
@@ -180,14 +186,14 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 }
 
 // Do sends an API request and returns the API response.
-func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
+func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (resp *http.Response, err error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("context must be non-nil")
 	}
 
 	req = req.WithContext(ctx)
 
-	resp, err := c.client.Do(req)
+	resp, err = c.client.Do(req)
 	if err != nil {
 		select {
 		case <-ctx.Done():
@@ -196,16 +202,22 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 		}
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		closeErr := resp.Body.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
-	err = CheckResponse(resp)
-	if err != nil {
+	if err = CheckResponse(resp); err != nil {
 		return resp, err
 	}
 
 	if v != nil {
 		if w, ok := v.(io.Writer); ok {
-			io.Copy(w, resp.Body)
+			if _, copyErr := io.Copy(w, resp.Body); copyErr != nil && err == nil {
+				err = copyErr
+			}
 		} else {
 			decErr := json.NewDecoder(resp.Body).Decode(v)
 			if decErr == io.EOF {
@@ -242,7 +254,9 @@ func CheckResponse(r *http.Response) error {
 	errorResponse := &ErrorResponse{Response: r}
 	data, err := io.ReadAll(r.Body)
 	if err == nil && data != nil {
-		json.Unmarshal(data, errorResponse)
+		if unmarshalErr := json.Unmarshal(data, errorResponse); unmarshalErr != nil {
+			errorResponse.Message = strings.TrimSpace(string(data))
+		}
 	}
 
 	// Try to get a meaningful error message

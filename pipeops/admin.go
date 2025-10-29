@@ -57,7 +57,11 @@ type AdminListUsersOptions struct {
 func (s *AdminService) ListUsers(ctx context.Context, opts *AdminListUsersOptions) (*AdminUsersResponse, *http.Response, error) {
 	u := "admin/users"
 	if opts != nil {
-		u, _ = addOptions(u, opts)
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)

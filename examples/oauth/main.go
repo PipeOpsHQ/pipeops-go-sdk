@@ -33,7 +33,9 @@ func main() {
 	fmt.Print("Enter the authorization code from the callback: ")
 
 	var authCode string
-	fmt.Scanln(&authCode)
+	if _, err := fmt.Scanln(&authCode); err != nil {
+		log.Fatalf("Failed to read authorization code: %v", err)
+	}
 
 	// Step 2: Exchange authorization code for access token
 	tokenResp, _, err := client.OAuth.ExchangeCodeForToken(ctx, &pipeops.TokenRequest{

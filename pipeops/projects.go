@@ -63,7 +63,11 @@ type ProjectListOptions struct {
 func (s *ProjectService) List(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
 	u := "project"
 	if opts != nil {
-		u, _ = addOptions(u, opts)
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -192,7 +196,11 @@ type LogsResponse struct {
 func (s *ProjectService) GetLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/logs/%s", projectUUID)
 	if opts != nil {
-		u, _ = addOptions(u, opts)
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -213,7 +221,11 @@ func (s *ProjectService) GetLogs(ctx context.Context, projectUUID string, opts *
 func (s *ProjectService) TailLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/logs/%s", projectUUID)
 	if opts != nil {
-		u, _ = addOptions(u, opts)
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -234,7 +246,11 @@ func (s *ProjectService) TailLogs(ctx context.Context, projectUUID string, opts 
 func (s *ProjectService) SearchLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/logs/%s", projectUUID)
 	if opts != nil {
-		u, _ = addOptions(u, opts)
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
