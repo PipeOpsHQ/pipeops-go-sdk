@@ -138,3 +138,7 @@ This SDK is distributed under the terms of the license specified in the LICENSE 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Release Process
+
+See [RELEASE.md](RELEASE.md) for information about creating releases and publishing the SDK.

@@ -31,3 +31,8 @@ Thumbs.db
 # Environment files
 .env
 .env.local
+
+# GoReleaser
+dist/
+coverage.txt
+coverage.html
