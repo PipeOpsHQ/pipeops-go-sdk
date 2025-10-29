@@ -1,0 +1,87 @@
+# GoReleaser configuration for PipeOps Go SDK
+# This is a library, so we don't build binaries but we use GoReleaser for changelog generation and release management
+
+before:
+  hooks:
+    # Ensure dependencies are up to date
+    - go mod tidy
+    # Run tests before release
+    - go test ./...
+
+builds:
+  # Skip building binaries since this is a library
+  - skip: true
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Refactors'
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: 'Documentation'
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 4
+    - title: 'Other'
+      order: 999
+
+release:
+  github:
+    owner: PipeOpsHQ
+    name: pipeops-go-sdk
+  
+  # Release name template
+  name_template: "Release {{.Tag}}"
+  
+  # Whether to make the release a draft
+  draft: false
+  
+  # Whether to mark the release as prerelease
+  prerelease: auto
+  
+  # Release footer template
+  footer: |
+    ## Installation
+    
+    ```bash
+    go get github.com/PipeOpsHQ/pipeops-go-sdk@{{.Tag}}
+    ```
+    
+    ## What's Changed
+    
+    See the changelog above for details.
+    
+    **Full Changelog**: https://github.com/PipeOpsHQ/pipeops-go-sdk/compare/{{.PreviousTag}}...{{.Tag}}
+
+announce:
+  skip: true
+
+# Disable snapshot builds
+snapshot:
+  name_template: '{{ incpatch .Version }}-next'
+
+# Checksum generation
+checksum:
+  name_template: 'checksums.txt'
+
+# Source archive
+source:
+  enabled: true
+  name_template: '{{ .ProjectName }}-{{ .Version }}'
+  format: 'tar.gz'

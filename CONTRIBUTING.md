@@ -13,22 +13,59 @@ cd pipeops-go-sdk
 2. Install dependencies:
 ```bash
 go mod download
+# or use make
+make deps
 ```
 
 3. Run tests:
 ```bash
 go test ./...
+# or use make
+make test
 ```
 
 4. Format code:
 ```bash
 go fmt ./...
+# or use make
+make fmt
 ```
 
 5. Run linter:
 ```bash
 go vet ./...
+# or use make
+make vet
 ```
+
+6. Run golangci-lint (optional but recommended):
+```bash
+# Install golangci-lint if not already installed
+make install-tools
+
+# Run linter
+make lint
+```
+
+## Available Make Commands
+
+Run `make help` to see all available commands:
+
+- `make deps` - Download and verify dependencies
+- `make tidy` - Tidy and vendor dependencies
+- `make build` - Build the project
+- `make test` - Run tests with coverage
+- `make test-short` - Run short tests
+- `make coverage` - Generate HTML coverage report
+- `make fmt` - Format code
+- `make vet` - Run go vet
+- `make lint` - Run golangci-lint
+- `make lint-fix` - Run golangci-lint with auto-fix
+- `make check` - Run all checks (fmt, vet, lint, test)
+- `make clean` - Clean build artifacts
+- `make install-tools` - Install development tools
+- `make release-snapshot` - Create a snapshot release (for testing)
+- `make release-test` - Test release process without publishing
 
 ## Adding New API Endpoints
 
@@ -88,9 +125,57 @@ func (s *MyService) MyNewMethod(ctx context.Context, req *MyNewRequest) (*MyNewR
 2. Create a new branch for your feature or fix
 3. Make your changes
 4. Add tests if applicable
-5. Ensure all tests pass
-6. Format your code
-7. Submit a pull request
+5. Ensure all tests pass with `make test`
+6. Format your code with `make fmt`
+7. Run linter with `make lint`
+8. Submit a pull request
+
+Pull requests will automatically trigger:
+- CI workflow that runs tests across multiple Go versions
+- Code formatting checks
+- Linting with golangci-lint
+- Coverage reporting
+
+## Continuous Integration
+
+This repository uses GitHub Actions for continuous integration. The following workflows are configured:
+
+### CI Workflow
+Runs on every push and pull request to `main` and `develop` branches:
+- Tests on Go 1.21, 1.22, and 1.23
+- Code formatting checks (`go fmt`)
+- Static analysis (`go vet`)
+- Linting with golangci-lint
+- Coverage reporting to Codecov
+
+### Release Workflow
+Automatically triggered when a new version tag is pushed:
+- Runs tests
+- Creates a GitHub release with GoReleaser
+- Generates changelog
+- Creates source archives
+- Updates release notes
+
+See [RELEASE.md](RELEASE.md) for information on creating releases.
+
+## Code Quality
+
+We use several tools to maintain code quality:
+
+- **golangci-lint**: Comprehensive Go linter with multiple checkers enabled
+- **go vet**: Go's built-in static analyzer
+- **gofmt**: Go's official code formatter
+
+Configuration files:
+- `.golangci.yml` - golangci-lint configuration
+- `.goreleaser.yml` - GoReleaser configuration
+
+## Dependency Management
+
+This repository uses Dependabot to keep dependencies up to date:
+- Go module dependencies are checked weekly
+- GitHub Actions versions are checked weekly
+- PRs are automatically created for updates
 
 ## Questions?
 
