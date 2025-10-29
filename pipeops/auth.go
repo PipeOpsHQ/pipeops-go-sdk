@@ -2,7 +2,10 @@ package pipeops
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 // AuthService handles communication with the authentication related
@@ -42,17 +45,27 @@ type User struct {
 
 // Login authenticates a user with email and password.
 func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("login request cannot be nil")
+	}
+	if err := validateEmail(req.Email); err != nil {
+		return nil, nil, fmt.Errorf("invalid email: %w", err)
+	}
+	if req.Password == "" {
+		return nil, nil, errors.New("password cannot be empty")
+	}
+
 	u := "auth/login"
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create login request: %w", err)
 	}
 
 	loginResp := new(LoginResponse)
 	resp, err := s.client.Do(ctx, httpReq, loginResp)
 	if err != nil {
-		return nil, resp, err
+		return nil, resp, fmt.Errorf("login failed: %w", err)
 	}
 
 	return loginResp, resp, nil
@@ -77,17 +90,27 @@ type SignupResponse struct {
 
 // Signup creates a new user account.
 func (s *AuthService) Signup(ctx context.Context, req *SignupRequest) (*SignupResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("signup request cannot be nil")
+	}
+	if err := validateEmail(req.Email); err != nil {
+		return nil, nil, fmt.Errorf("invalid email: %w", err)
+	}
+	if len(req.Password) < 6 {
+		return nil, nil, errors.New("password must be at least 6 characters")
+	}
+
 	u := "auth/signup"
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create signup request: %w", err)
 	}
 
 	signupResp := new(SignupResponse)
 	resp, err := s.client.Do(ctx, httpReq, signupResp)
 	if err != nil {
-		return nil, resp, err
+		return nil, resp, fmt.Errorf("signup failed: %w", err)
 	}
 
 	return signupResp, resp, nil
@@ -255,4 +278,20 @@ func (s *AuthService) VerifyPasswordResetToken(ctx context.Context, token string
 
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
+}
+
+// validateEmail performs basic email validation.
+func validateEmail(email string) error {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return errors.New("email cannot be empty")
+	}
+	if !strings.Contains(email, "@") {
+		return errors.New("email must contain @")
+	}
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return errors.New("invalid email format")
+	}
+	return nil
 }

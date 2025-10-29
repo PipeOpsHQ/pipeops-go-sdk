@@ -194,74 +194,41 @@ type LogsResponse struct {
 
 // GetLogs retrieves logs for a project.
 func (s *ProjectService) GetLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/logs/%s", projectUUID)
-	if opts != nil {
-		var err error
-		u, err = addOptions(u, opts)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	logsResp := new(LogsResponse)
-	resp, err := s.client.Do(ctx, req, logsResp)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return logsResp, resp, nil
+	return s.fetchLogs(ctx, projectUUID, opts)
 }
 
 // TailLogs tails logs for a project (streams recent logs).
+// Deprecated: Use GetLogs with appropriate LogsOptions instead.
 func (s *ProjectService) TailLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/logs/%s", projectUUID)
-	if opts != nil {
-		var err error
-		u, err = addOptions(u, opts)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	logsResp := new(LogsResponse)
-	resp, err := s.client.Do(ctx, req, logsResp)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return logsResp, resp, nil
+	return s.fetchLogs(ctx, projectUUID, opts)
 }
 
 // SearchLogs searches logs for a project.
+// Deprecated: Use GetLogs with Search field in LogsOptions instead.
 func (s *ProjectService) SearchLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
+	return s.fetchLogs(ctx, projectUUID, opts)
+}
+
+// fetchLogs is the internal implementation for retrieving project logs.
+func (s *ProjectService) fetchLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/logs/%s", projectUUID)
 	if opts != nil {
 		var err error
 		u, err = addOptions(u, opts)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to add options: %w", err)
 		}
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create logs request: %w", err)
 	}
 
 	logsResp := new(LogsResponse)
 	resp, err := s.client.Do(ctx, req, logsResp)
 	if err != nil {
-		return nil, resp, err
+		return nil, resp, fmt.Errorf("failed to fetch logs: %w", err)
 	}
 
 	return logsResp, resp, nil

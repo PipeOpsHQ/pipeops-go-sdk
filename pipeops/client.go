@@ -75,17 +75,21 @@ type Client struct {
 }
 
 // NewClient returns a new PipeOps API client.
-func NewClient(baseURL string) *Client {
+// If baseURL is empty, the default API URL is used.
+// Returns an error if the provided baseURL is invalid.
+func NewClient(baseURL string) (*Client, error) {
 	if baseURL == "" {
 		baseURL = defaultBaseURL
 	}
 
 	parsedURL, err := url.Parse(baseURL)
 	if err != nil {
-		parsedURL, err = url.Parse(defaultBaseURL)
-		if err != nil {
-			panic(fmt.Sprintf("invalid default base URL %q: %v", defaultBaseURL, err))
-		}
+		return nil, fmt.Errorf("invalid base URL %q: %w", baseURL, err)
+	}
+
+	// Ensure base URL has trailing slash
+	if !strings.HasSuffix(parsedURL.Path, "/") {
+		parsedURL.Path += "/"
 	}
 
 	c := &Client{
@@ -132,7 +136,17 @@ func NewClient(baseURL string) *Client {
 	c.Alerts = &AlertService{client: c}
 	c.ServiceTokens = &ServiceTokenService{client: c}
 
-	return c
+	return c, nil
+}
+
+// MustNewClient returns a new PipeOps API client and panics on error.
+// This should only be used in init functions or when you are certain the URL is valid.
+func MustNewClient(baseURL string) *Client {
+	client, err := NewClient(baseURL)
+	if err != nil {
+		panic(err)
+	}
+	return client
 }
 
 // SetToken sets the authentication token for API requests.
@@ -147,13 +161,9 @@ func (c *Client) SetHTTPClient(client *http.Client) {
 
 // NewRequest creates an API request.
 func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
-	if !strings.HasSuffix(c.BaseURL.Path, "/") {
-		c.BaseURL.Path += "/"
-	}
-
 	u, err := c.BaseURL.Parse(urlStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse URL %q: %w", urlStr, err)
 	}
 
 	var buf io.ReadWriter

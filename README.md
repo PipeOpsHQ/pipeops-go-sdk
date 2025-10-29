@@ -37,7 +37,10 @@ import (
 
 func main() {
     // Create a new client
-    client := pipeops.NewClient("https://api.pipeops.io")
+    client, err := pipeops.NewClient("https://api.pipeops.io")
+    if err != nil {
+        log.Fatal(err)
+    }
     
     // Login to get an authentication token
     ctx := context.Background()
@@ -55,7 +58,10 @@ func main() {
     client.SetToken(resp.Data.Token)
     
     // Now you can make authenticated API calls
-    projects, _, _ := client.Projects.List(ctx, nil)
+    projects, _, err := client.Projects.List(ctx, nil)
+    if err != nil {
+        log.Fatal(err)
+    }
     fmt.Printf("Found %d projects\n", len(projects.Data.Projects))
 }
 ```
