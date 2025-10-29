@@ -90,7 +90,6 @@ type Client struct {
 	AddOns              *AddOnService
 	Webhooks            *WebhookService
 	Users               *UserService
-	Admin               *AdminService
 	CloudProviders      *CloudProviderService
 	Events              *EventService
 	Survey              *SurveyService
@@ -221,7 +220,6 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	c.AddOns = &AddOnService{client: c}
 	c.Webhooks = &WebhookService{client: c}
 	c.Users = &UserService{client: c}
-	c.Admin = &AdminService{client: c}
 	c.CloudProviders = &CloudProviderService{client: c}
 	c.Events = &EventService{client: c}
 	c.Survey = &SurveyService{client: c}

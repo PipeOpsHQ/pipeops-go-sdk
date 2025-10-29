@@ -196,6 +196,28 @@ type SubscriptionResponse struct {
 	} `json:"data"`
 }
 
+// Plan represents a subscription plan.
+type Plan struct {
+	ID          string   `json:"id,omitempty"`
+	UUID        string   `json:"uuid,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Price       float64  `json:"price,omitempty"`
+	Currency    string   `json:"currency,omitempty"`
+	Interval    string   `json:"interval,omitempty"`
+	Features    []string `json:"features,omitempty"`
+	Active      bool     `json:"active,omitempty"`
+}
+
+// PlansResponse represents a list of plans response.
+type PlansResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		Plans []Plan `json:"plans"`
+	} `json:"data"`
+}
+
 // SubscribeRequest represents a subscription request.
 type SubscribeRequest struct {
 	PlanID string `json:"plan_id"`
