@@ -25,9 +25,11 @@ Before creating a release, ensure:
 3. Documentation is up to date
 4. `CHANGELOG.md` is updated (if maintained manually)
 
-### 2. Create a Release Tag
+### 2. Auto-generated Release Tags
 
-To create a new release, create and push a git tag:
+Commits merged into the `main` branch automatically trigger the **Auto Tag Release** workflow. It creates the next semantic version tag and pushes it to the repository (default bump is `patch`, `feat` commits bump `minor`). Use `[skip release]` or `[skip tag]` in the commit subject to short-circuit auto-tagging when needed.
+
+Manual tagging still works when you need a specific version:
 
 ```bash
 # For a new minor version
@@ -35,9 +37,6 @@ git tag v1.1.0
 
 # For a new patch version
 git tag v1.0.1
-
-# For a new major version (breaking changes)
-git tag v2.0.0
 
 # Push the tag to trigger the release workflow
 git push origin v1.1.0
@@ -102,6 +101,7 @@ make release-snapshot
 If you need to rollback a release:
 
 1. Delete the tag locally and remotely:
+
    ```bash
    git tag -d v1.1.0
    git push --delete origin v1.1.0

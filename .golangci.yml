@@ -20,7 +20,7 @@ linters:
     - goconst       # Finds repeated strings that could be constants
     - gocyclo       # Computes cyclomatic complexity
 
-settings:
+linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
