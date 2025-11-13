@@ -390,12 +390,14 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 			// Calculate backoff delay with jitter
 			waitDuration := c.calculateBackoff(attempt)
 
+			safeURL := strings.ReplaceAll(req.URL.String(), "\n", "")
+			safeURL = strings.ReplaceAll(safeURL, "\r", "")
 			c.logger.Warn("Retrying request",
 				"attempt", attempt,
 				"max_attempts", c.retryConfig.MaxRetries,
 				"wait_duration", waitDuration,
 				"method", req.Method,
-				"url", req.URL.String(),
+				"url", safeURL,
 			)
 
 			// Wait before retry, respecting context cancellation
@@ -429,6 +431,8 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 			//nolint:errcheck // Best effort drain before retry
 			io.Copy(io.Discard, resp.Body)
 			//nolint:errcheck // Best effort close before retry
+			safeURL := strings.ReplaceAll(req.URL.String(), "\n", "")
+			safeURL = strings.ReplaceAll(safeURL, "\r", "")
 			resp.Body.Close()
 		}
 
@@ -437,7 +441,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 			c.logger.Error("Max retries exceeded",
 				"attempts", attempt+1,
 				"method", req.Method,
-				"url", req.URL.String(),
+				"url", safeURL,
 			)
 			break
 		}
