@@ -13,10 +13,10 @@ serversService := client.Servers
 
 ### List Servers
 
-List all servers:
+List all servers in a cluster:
 
 ```go
-servers, _, err := client.Servers.List(ctx)
+servers, _, err := client.Servers.List(ctx, "cluster-uuid")
 if err != nil {
     log.Fatalf("Failed to list servers: %v", err)
 }
@@ -27,12 +27,13 @@ for _, server := range servers.Data.Servers {
 }
 ```
 
+
 ### Get Server
 
 Get a specific server by UUID:
 
 ```go
-server, _, err := client.Servers.Get(ctx, "server-uuid")
+server, _, err := client.Servers.Get(ctx, "cluster-uuid", "server-uuid")
 if err != nil {
     log.Fatalf("Failed to get server: %v", err)
 }
@@ -43,16 +44,17 @@ fmt.Printf("Region: %s\n", server.Data.Server.Region)
 fmt.Printf("Status: %s\n", server.Data.Server.Status)
 ```
 
+
 ### Create Server
 
-Create a new server cluster:
+Create a new server in a cluster:
 
 ```go
-newServer, _, err := client.Servers.Create(ctx, &pipeops.CreateServerRequest{
-    Name:     "Production Cluster",
-    Provider: "aws",
-    Region:   "us-east-1",
-    Size:     "t3.medium",
+newServer, _, err := client.Servers.Create(ctx, "cluster-uuid", &pipeops.CreateServerRequest{
+    Name:      "Production Server",
+    Port:      "8080",
+    IPAddress: "127.0.0.1",
+    Provider:  "aws",
 })
 if err != nil {
     log.Fatalf("Failed to create server: %v", err)
@@ -61,12 +63,13 @@ if err != nil {
 fmt.Printf("Created server: %s\n", newServer.Data.Server.UUID)
 ```
 
+
 ### Delete Server
 
-Delete a server:
+Delete a server from a cluster:
 
 ```go
-_, err := client.Servers.Delete(ctx, "server-uuid")
+_, err := client.Servers.Delete(ctx, "cluster-uuid", "server-uuid")
 if err != nil {
     log.Fatalf("Failed to delete server: %v", err)
 }
@@ -214,8 +217,8 @@ func main() {
     
     ctx := context.Background()
     
-    // List all servers
-    servers, _, err := client.Servers.List(ctx)
+    // List all servers in a cluster
+    servers, _, err := client.Servers.List(ctx, "cluster-uuid")
     if err != nil {
         log.Fatalf("Failed to list servers: %v", err)
     }
@@ -228,7 +231,7 @@ func main() {
     // Get details of first server
     if len(servers.Data.Servers) > 0 {
         serverUUID := servers.Data.Servers[0].UUID
-        server, _, err := client.Servers.Get(ctx, serverUUID)
+        server, _, err := client.Servers.Get(ctx, "cluster-uuid", serverUUID)
         if err != nil {
             log.Fatalf("Failed to get server: %v", err)
         }
@@ -239,6 +242,7 @@ func main() {
     }
 }
 ```
+
 
 ## See Also
 

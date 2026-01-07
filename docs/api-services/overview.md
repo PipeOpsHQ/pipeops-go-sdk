@@ -32,7 +32,7 @@ client.SetToken("your-token")
 
 // Each service has its own methods
 projects, _, err := client.Projects.List(ctx, nil)
-servers, _, err := client.Servers.List(ctx)
+servers, _, err := client.Servers.List(ctx, "cluster-uuid")
 teams, _, err := client.Teams.List(ctx)
 ```
 
@@ -124,16 +124,17 @@ newProject, _, _ := client.Projects.Create(ctx, &pipeops.CreateProjectRequest{
 
 ```go
 // List servers
-servers, _, _ := client.Servers.List(ctx)
+servers, _, _ := client.Servers.List(ctx, "cluster-uuid")
 
 // Get server details
-server, _, _ := client.Servers.Get(ctx, "server-uuid")
+server, _, _ := client.Servers.Get(ctx, "cluster-uuid", "server-uuid")
 
 // Create server
-newServer, _, _ := client.Servers.Create(ctx, &pipeops.CreateServerRequest{
-    Name:     "Production Server",
-    Provider: "aws",
-    Region:   "us-east-1",
+newServer, _, _ := client.Servers.Create(ctx, "cluster-uuid", &pipeops.CreateServerRequest{
+    Name:      "Production Server",
+    Port:      "8080",
+    IPAddress: "127.0.0.1",
+    Provider:  "aws",
 })
 ```
 
@@ -320,14 +321,14 @@ client.SetToken(token)
 
 // Use for multiple requests
 projects, _, _ := client.Projects.List(ctx, nil)
-servers, _, _ := client.Servers.List(ctx)
+servers, _, _ := client.Servers.List(ctx, "cluster-uuid")
 
 // ❌ Bad - Creating new client for each request
 client1, _ := pipeops.NewClient("")
 projects, _, _ := client1.Projects.List(ctx, nil)
 
 client2, _ := pipeops.NewClient("")
-servers, _, _ := client2.Servers.List(ctx)
+servers, _, _ := client2.Servers.List(ctx, "cluster-uuid")
 ```
 
 ## Next Steps

@@ -6,13 +6,13 @@ import (
 	"net/http"
 )
 
-// ServerService handles communication with the server/cluster related
+// ServerService handles communication with the server related
 // methods of the PipeOps API.
 type ServerService struct {
 	client *Client
 }
 
-// Server represents a PipeOps server/cluster.
+// Server represents a PipeOps server.
 type Server struct {
 	ID          string     `json:"id,omitempty"`
 	UUID        string     `json:"uuid,omitempty"`
@@ -43,9 +43,9 @@ type ServerResponse struct {
 	} `json:"data"`
 }
 
-// List lists all servers.
-func (s *ServerService) List(ctx context.Context) (*ServersResponse, *http.Response, error) {
-	u := "server"
+// List lists all servers in a cluster.
+func (s *ServerService) List(ctx context.Context, clusterUUID string) (*ServersResponse, *http.Response, error) {
+	u := fmt.Sprintf("clusters/%s/servers", clusterUUID)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -62,8 +62,8 @@ func (s *ServerService) List(ctx context.Context) (*ServersResponse, *http.Respo
 }
 
 // Get fetches a server by UUID.
-func (s *ServerService) Get(ctx context.Context, serverUUID string) (*ServerResponse, *http.Response, error) {
-	u := fmt.Sprintf("server/%s", serverUUID)
+func (s *ServerService) Get(ctx context.Context, clusterUUID, serverUUID string) (*ServerResponse, *http.Response, error) {
+	u := fmt.Sprintf("clusters/%s/servers/%s", clusterUUID, serverUUID)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -81,16 +81,15 @@ func (s *ServerService) Get(ctx context.Context, serverUUID string) (*ServerResp
 
 // CreateServerRequest represents a request to create a server.
 type CreateServerRequest struct {
-	Name         string `json:"name"`
-	Provider     string `json:"provider"`
-	Region       string `json:"region"`
-	WorkspaceID  string `json:"workspace_id"`
-	InstanceType string `json:"instance_type,omitempty"`
+	Name      string `json:"name"`
+	Port      string `json:"port"`
+	IPAddress string `json:"ip_address"`
+	Provider  string `json:"provider"`
 }
 
-// Create creates a new server.
-func (s *ServerService) Create(ctx context.Context, req *CreateServerRequest) (*ServerResponse, *http.Response, error) {
-	u := "server/create"
+// Create creates a new server in a cluster.
+func (s *ServerService) Create(ctx context.Context, clusterUUID string, req *CreateServerRequest) (*ServerResponse, *http.Response, error) {
+	u := fmt.Sprintf("clusters/%s/servers", clusterUUID)
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
@@ -106,9 +105,9 @@ func (s *ServerService) Create(ctx context.Context, req *CreateServerRequest) (*
 	return serverResp, resp, nil
 }
 
-// Delete deletes a server.
-func (s *ServerService) Delete(ctx context.Context, serverUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("api/v1/clusters/%s", serverUUID)
+// Delete deletes a server from a cluster.
+func (s *ServerService) Delete(ctx context.Context, clusterUUID, serverUUID string) (*http.Response, error) {
+	u := fmt.Sprintf("clusters/%s/servers/%s", clusterUUID, serverUUID)
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {

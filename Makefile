@@ -26,8 +26,8 @@ test-short: ## Run short tests
 	go test -v -short ./...
 
 .PHONY: coverage
-coverage: test ## Generate coverage report
 	go tool cover -html=coverage.txt -o coverage.html
+	coverage: test ## Generate coverage report
 	@echo "Coverage report generated: coverage.html"
 
 .PHONY: fmt

@@ -114,7 +114,7 @@ type CreateProjectRequest struct {
 	StartCommand  string                 `json:"start_command,omitempty"`
 	Port          int                    `json:"port,omitempty"`
 	Framework     string                 `json:"framework,omitempty"`
-	EnvVars       map[string]interface{} `json:"env_vars,omitempty"`
+	EnvVars       map[string]any `json:"env_vars,omitempty"`
 }
 
 // Create creates a new project.

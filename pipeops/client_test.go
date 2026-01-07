@@ -17,7 +17,6 @@ func TestNewClient(t *testing.T) {
 		{
 			name:    "valid URL",
 			baseURL: "https://api.pipeops.io",
-			wantErr: false,
 		},
 		{
 			name:    "empty URL uses default",

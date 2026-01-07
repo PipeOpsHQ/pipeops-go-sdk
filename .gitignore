@@ -42,3 +42,6 @@ CODE_REVIEW_SUMMARY.md
 .opencode/
 opencode.json
 site/
+
+# Ignore postman files
+postman/

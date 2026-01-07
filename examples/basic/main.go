@@ -37,7 +37,7 @@ func main() {
 		Password: password,
 	}
 
-	loginResp, _, err := client.Auth.Login(ctx, loginReq)
+ loginResp, _, err := client.Auth.Login(ctx, loginReq)
 	if err != nil {
 		log.Fatalf("Login failed: %v", err)
 	}
@@ -59,7 +59,7 @@ func main() {
 	}
 
 	// List all servers
-	servers, _, err := client.Servers.List(ctx)
+	servers, _, err := client.Servers.List(ctx, "cluster-uuid")
 	if err != nil {
 		log.Fatalf("Failed to list servers: %v", err)
 	}
