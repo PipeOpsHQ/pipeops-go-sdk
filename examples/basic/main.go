@@ -58,8 +58,19 @@ func main() {
 		fmt.Printf("  - %s (%s)\n", project.Name, project.UUID)
 	}
 
-	// List all servers
-	servers, _, err := client.Servers.List(ctx, "cluster-uuid")
+	// List all workspaces (needed for listing clusters/servers)
+	workspaces, _, err := client.Workspaces.List(ctx)
+	if err != nil {
+		log.Fatalf("Failed to list workspaces: %v", err)
+	}
+	if len(workspaces.Data.Workspaces) == 0 {
+		log.Fatal("No workspaces found for the authenticated user")
+	}
+
+	workspaceUUID := workspaces.Data.Workspaces[0].UUID
+
+	// List all servers (clusters) in the workspace
+	servers, _, err := client.Servers.List(ctx, workspaceUUID)
 	if err != nil {
 		log.Fatalf("Failed to list servers: %v", err)
 	}

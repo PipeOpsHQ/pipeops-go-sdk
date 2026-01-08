@@ -13,10 +13,10 @@ serversService := client.Servers
 
 ### List Servers
 
-List all servers in a cluster:
+List all servers (clusters) in a workspace:
 
 ```go
-servers, _, err := client.Servers.List(ctx, "cluster-uuid")
+servers, _, err := client.Servers.List(ctx, "workspace-uuid")
 if err != nil {
     log.Fatalf("Failed to list servers: %v", err)
 }
@@ -33,7 +33,7 @@ for _, server := range servers.Data.Servers {
 Get a specific server by UUID:
 
 ```go
-server, _, err := client.Servers.Get(ctx, "cluster-uuid", "server-uuid")
+server, _, err := client.Servers.Get(ctx, "cluster-uuid", "workspace-uuid")
 if err != nil {
     log.Fatalf("Failed to get server: %v", err)
 }
@@ -47,14 +47,14 @@ fmt.Printf("Status: %s\n", server.Data.Server.Status)
 
 ### Create Server
 
-Create a new server in a cluster:
+Create a new server:
 
 ```go
 newServer, _, err := client.Servers.Create(ctx, "cluster-uuid", &pipeops.CreateServerRequest{
-    Name:      "Production Server",
-    Port:      "8080",
-    IPAddress: "127.0.0.1",
-    Provider:  "aws",
+    ServerName:   "Production Server",
+    ServerRegion: "us",
+    ServerType:   "startup",
+    ServerCloud:  "aws",
 })
 if err != nil {
     log.Fatalf("Failed to create server: %v", err)
@@ -217,8 +217,10 @@ func main() {
     
     ctx := context.Background()
     
-    // List all servers in a cluster
-    servers, _, err := client.Servers.List(ctx, "cluster-uuid")
+    workspaceUUID := "workspace-uuid"
+
+    // List all servers (clusters) in a workspace
+    servers, _, err := client.Servers.List(ctx, workspaceUUID)
     if err != nil {
         log.Fatalf("Failed to list servers: %v", err)
     }
@@ -230,8 +232,8 @@ func main() {
     
     // Get details of first server
     if len(servers.Data.Servers) > 0 {
-        serverUUID := servers.Data.Servers[0].UUID
-        server, _, err := client.Servers.Get(ctx, "cluster-uuid", serverUUID)
+        clusterUUID := servers.Data.Servers[0].UUID
+        server, _, err := client.Servers.Get(ctx, clusterUUID, workspaceUUID)
         if err != nil {
             log.Fatalf("Failed to get server: %v", err)
         }

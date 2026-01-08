@@ -2,6 +2,7 @@ package pipeops
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -44,54 +45,111 @@ type ServerResponse struct {
 }
 
 // List lists all servers in a cluster.
-func (s *ServerService) List(ctx context.Context, clusterUUID string) (*ServersResponse, *http.Response, error) {
-	u := fmt.Sprintf("clusters/%s/servers", clusterUUID)
+func (s *ServerService) List(ctx context.Context, workspaceUUID string) (*ServersResponse, *http.Response, error) {
+	if workspaceUUID == "" {
+		return nil, nil, errors.New("workspace UUID cannot be empty")
+	}
+
+	u, err := addOptions("cluster", &clusterWorkspaceOptions{WorkspaceUUID: workspaceUUID})
+	if err != nil {
+		return nil, nil, err
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	serversResp := new(ServersResponse)
-	resp, err := s.client.Do(ctx, req, serversResp)
+	rawResp := new(clusterListResponse)
+	resp, err := s.client.Do(ctx, req, rawResp)
 	if err != nil {
 		return nil, resp, err
+	}
+
+	serversResp := &ServersResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+	for _, cluster := range rawResp.Data.Clusters {
+		serversResp.Data.Servers = append(serversResp.Data.Servers, clusterToServer(cluster))
 	}
 
 	return serversResp, resp, nil
 }
 
 // Get fetches a server by UUID.
-func (s *ServerService) Get(ctx context.Context, clusterUUID, serverUUID string) (*ServerResponse, *http.Response, error) {
-	u := fmt.Sprintf("clusters/%s/servers/%s", clusterUUID, serverUUID)
+func (s *ServerService) Get(ctx context.Context, clusterUUID, workspaceUUID string) (*ServerResponse, *http.Response, error) {
+	if clusterUUID == "" {
+		return nil, nil, errors.New("cluster UUID cannot be empty")
+	}
+	if workspaceUUID == "" {
+		return nil, nil, errors.New("workspace UUID cannot be empty")
+	}
+
+	u, err := addOptions(fmt.Sprintf("cluster/%s", clusterUUID), &clusterWorkspaceOptions{WorkspaceUUID: workspaceUUID})
+	if err != nil {
+		return nil, nil, err
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	serverResp := new(ServerResponse)
-	resp, err := s.client.Do(ctx, req, serverResp)
+	rawResp := new(clusterListResponse)
+	resp, err := s.client.Do(ctx, req, rawResp)
 	if err != nil {
 		return nil, resp, err
 	}
+
+	if len(rawResp.Data.Clusters) == 0 {
+		return nil, resp, errors.New("no cluster data returned")
+	}
+
+	serverResp := &ServerResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+	serverResp.Data.Server = clusterToServer(rawResp.Data.Clusters[0])
 
 	return serverResp, resp, nil
 }
 
 // CreateServerRequest represents a request to create a server.
 type CreateServerRequest struct {
-	Name      string `json:"name"`
-	Port      string `json:"port"`
-	IPAddress string `json:"ip_address"`
-	Provider  string `json:"provider"`
+	ServerName   string `json:"server_name,omitempty"`
+	ServerRegion string `json:"server_region,omitempty"`
+	ServerType   string `json:"server_type,omitempty"`
+	ServerCloud  string `json:"server_cloud,omitempty"`
+
+	Name      string `json:"-"`
+	Region    string `json:"-"`
+	Port      string `json:"-"`
+	IPAddress string `json:"-"`
+	Provider  string `json:"-"`
 }
 
 // Create creates a new server in a cluster.
 func (s *ServerService) Create(ctx context.Context, clusterUUID string, req *CreateServerRequest) (*ServerResponse, *http.Response, error) {
-	u := fmt.Sprintf("clusters/%s/servers", clusterUUID)
+	if req == nil {
+		return nil, nil, errors.New("create server request cannot be nil")
+	}
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	_ = clusterUUID
+
+	u := "server/create"
+	payload := &createServerPayload{
+		ServerName:   coalesceNonEmpty(req.ServerName, req.Name),
+		ServerRegion: coalesceNonEmpty(req.ServerRegion, req.Region),
+		ServerType:   req.ServerType,
+		ServerCloud:  coalesceNonEmpty(req.ServerCloud, req.Provider),
+	}
+
+	if payload.ServerName == "" {
+		return nil, nil, errors.New("server name is required")
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, payload)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,7 +165,11 @@ func (s *ServerService) Create(ctx context.Context, clusterUUID string, req *Cre
 
 // Delete deletes a server from a cluster.
 func (s *ServerService) Delete(ctx context.Context, clusterUUID, serverUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("clusters/%s/servers/%s", clusterUUID, serverUUID)
+	if clusterUUID == "" {
+		return nil, errors.New("cluster UUID cannot be empty")
+	}
+
+	u := fmt.Sprintf("api/v1/clusters/%s", clusterUUID)
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {
@@ -115,7 +177,96 @@ func (s *ServerService) Delete(ctx context.Context, clusterUUID, serverUUID stri
 	}
 
 	resp, err := s.client.Do(ctx, req, nil)
-	return resp, err
+	if err == nil || !isNotFound(err) {
+		return resp, err
+	}
+
+	if serverUUID == "" {
+		return resp, err
+	}
+
+	u = fmt.Sprintf("clusters/%s/servers/%s", clusterUUID, serverUUID)
+	req, reqErr := s.client.NewRequest(http.MethodDelete, u, nil)
+	if reqErr != nil {
+		return resp, err
+	}
+
+	return s.client.Do(ctx, req, nil)
+}
+
+type clusterWorkspaceOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid"`
+}
+
+type clusterListResponse struct {
+	Success bool   `json:"success,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+	Data    struct {
+		Clusters []clusterListItem `json:"clusters,omitempty"`
+	} `json:"data,omitempty"`
+}
+
+type clusterListItem struct {
+	Cluster struct {
+		UUID          string `json:"uuid,omitempty"`
+		Name          string `json:"name,omitempty"`
+		CloudProvider string `json:"cloudProvider,omitempty"`
+		Region        string `json:"region,omitempty"`
+		Status        string `json:"status,omitempty"`
+	} `json:"Cluster,omitempty"`
+	IsActive bool `json:"IsActive,omitempty"`
+	InUse    bool `json:"InUse,omitempty"`
+}
+
+type createServerPayload struct {
+	ServerName   string `json:"server_name"`
+	ServerRegion string `json:"server_region,omitempty"`
+	ServerType   string `json:"server_type,omitempty"`
+	ServerCloud  string `json:"server_cloud,omitempty"`
+}
+
+func clusterToServer(cluster clusterListItem) Server {
+	status := cluster.Cluster.Status
+	if status == "" {
+		if cluster.IsActive {
+			status = "active"
+		} else {
+			status = "inactive"
+		}
+	}
+
+	return Server{
+		UUID:     cluster.Cluster.UUID,
+		Name:     cluster.Cluster.Name,
+		Provider: cluster.Cluster.CloudProvider,
+		Region:   cluster.Cluster.Region,
+		Status:   status,
+	}
+}
+
+func statusFromSuccess(success bool) string {
+	if success {
+		return "success"
+	}
+	return "error"
+}
+
+func coalesceNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func isNotFound(err error) bool {
+	apiErr, ok := err.(*ErrorResponse)
+	if !ok || apiErr.Response == nil {
+		return false
+	}
+	return apiErr.Response.StatusCode == http.StatusNotFound
 }
 
 // ServiceToken represents a service account token.

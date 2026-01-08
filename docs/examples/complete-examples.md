@@ -71,10 +71,11 @@ func main() {
     ctx := context.Background()
     
     // Create server
-    server, _, err := client.Servers.Create(ctx, &pipeops.CreateServerRequest{
-        Name:     "Production",
-        Provider: "aws",
-        Region:   "us-east-1",
+    server, _, err := client.Servers.Create(ctx, "cluster-uuid", &pipeops.CreateServerRequest{
+        ServerName:   "Production",
+        ServerRegion: "us",
+        ServerType:   "startup",
+        ServerCloud:  "aws",
     })
     if err != nil {
         log.Fatalf("Failed to create server: %v", err)

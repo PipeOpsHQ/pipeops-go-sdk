@@ -65,9 +65,18 @@ type ToggleEventRequest struct {
 
 // ToggleEvent toggles an event on/off.
 func (s *EventService) ToggleEvent(ctx context.Context, eventUUID string, req *ToggleEventRequest) (*EventResponse, *http.Response, error) {
-	u := fmt.Sprintf("user-settings/events/toggle/%s", eventUUID)
+	if req == nil {
+		return nil, nil, fmt.Errorf("toggle event request cannot be nil")
+	}
 
-	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	action := "disable"
+	if req.Enabled {
+		action = "enable"
+	}
+
+	u := fmt.Sprintf("user-settings/events/toggle/%s?action=%s", eventUUID, action)
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}

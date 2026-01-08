@@ -347,7 +347,7 @@ type MCPServersResponse struct {
 
 // GetMCPServers retrieves MCP registry servers.
 func (s *MCPRegistryService) GetMCPServers(ctx context.Context) (*MCPServersResponse, *http.Response, error) {
-	u := "servers"
+	u := "https://registry.smithery.ai/servers"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -397,7 +397,7 @@ func (s *OpenCostService) GetClusterComputeCost(ctx context.Context, clusterUUID
 
 // GetProjectsCost gets cluster projects cost metrics.
 func (s *OpenCostService) GetProjectsCost(ctx context.Context) (*ClusterCostResponse, *http.Response, error) {
-	u := "projects/cost/allocation/compute"
+	u := "cluster/projects/cost/allocation/compute"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
