@@ -3,6 +3,7 @@ package pipeops
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,24 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 		method string
 		path   string
 	}{
+		{
+			name:   "List",
+			method: http.MethodGet,
+			path:   "/project/fetch-names",
+			run: func(ctx context.Context, client *Client) error {
+				projects, _, err := client.Projects.List(ctx, nil)
+				if err != nil {
+					return err
+				}
+				if len(projects.Data.Projects) != 1 {
+					return fmt.Errorf("projects len = %d, want %d", len(projects.Data.Projects), 1)
+				}
+				if got := projects.Data.Projects[0].ID; got != "1487" {
+					return fmt.Errorf("project id = %q, want %q", got, "1487")
+				}
+				return nil
+			},
+		},
 		{
 			name:   "Create",
 			method: http.MethodPost,
@@ -86,6 +105,10 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				switch tt.name {
+				case "List":
+					if _, writeErr := w.Write([]byte(`{"data":{"projects":[{"UUID":"p1","Name":"proj","ID":1487}]},"message":"ok","success":true}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
 				case "Create":
 					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"project":{"uuid":"p1"}}}`)); writeErr != nil {
 						t.Fatalf("write response error: %v", writeErr)

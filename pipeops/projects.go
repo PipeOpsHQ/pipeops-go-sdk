@@ -2,8 +2,10 @@ package pipeops
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 // ProjectService handles communication with the project related
@@ -53,20 +55,28 @@ type ProjectResponse struct {
 // ProjectListOptions specifies the optional parameters to the
 // ProjectService.List method.
 type ProjectListOptions struct {
+	// WorkspaceUUID filters projects by workspace. Prefer this over WorkspaceID.
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+
+	// WorkspaceID is kept for backward compatibility (maps to WorkspaceUUID when possible).
 	WorkspaceID string `url:"workspace_id,omitempty"`
-	ServerID    string `url:"server_id,omitempty"`
-	Page        int    `url:"page,omitempty"`
-	Limit       int    `url:"limit,omitempty"`
+
+	ServerID string `url:"server_id,omitempty"`
+	Page     int    `url:"page,omitempty"`
+	Limit    int    `url:"limit,omitempty"`
 }
 
 // List lists all projects.
 func (s *ProjectService) List(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
-	u := "project"
+	u := "project/fetch-names"
 	if opts != nil {
-		var err error
-		u, err = addOptions(u, opts)
-		if err != nil {
-			return nil, nil, err
+		workspaceUUID := coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID)
+		if workspaceUUID != "" {
+			var err error
+			u, err = addOptions(u, &projectFetchNamesOptions{WorkspaceUUID: workspaceUUID})
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 	}
 
@@ -75,13 +85,81 @@ func (s *ProjectService) List(ctx context.Context, opts *ProjectListOptions) (*P
 		return nil, nil, err
 	}
 
-	projectsResp := new(ProjectsResponse)
-	resp, err := s.client.Do(ctx, req, projectsResp)
+	rawResp := new(projectFetchNamesResponse)
+	resp, err := s.client.Do(ctx, req, rawResp)
 	if err != nil {
 		return nil, resp, err
 	}
 
+	projectsResp := &ProjectsResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+
+	for _, project := range rawResp.Data.Projects {
+		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
+			ID:   project.ID.String(),
+			UUID: project.UUID,
+			Name: project.Name,
+		})
+	}
+
 	return projectsResp, resp, nil
+}
+
+type projectFetchNamesOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+}
+
+type projectFetchNamesResponse struct {
+	Success bool   `json:"success,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+	Data    struct {
+		Projects []projectFetchNamesProject `json:"projects,omitempty"`
+	} `json:"data,omitempty"`
+}
+
+type projectFetchNamesProject struct {
+	UUID string `json:"uuid,omitempty"`
+	Name string `json:"name,omitempty"`
+	ID   jsonID `json:"id,omitempty"`
+}
+
+type jsonID struct {
+	value string
+}
+
+func (j *jsonID) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		j.value = ""
+		return nil
+	}
+
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		j.value = s
+		return nil
+	}
+
+	var n json.Number
+	if err := json.Unmarshal(data, &n); err == nil {
+		j.value = n.String()
+		return nil
+	}
+
+	var i int64
+	if err := json.Unmarshal(data, &i); err == nil {
+		j.value = strconv.FormatInt(i, 10)
+		return nil
+	}
+
+	j.value = string(data)
+	return nil
+}
+
+func (j jsonID) String() string {
+	return j.value
 }
 
 // Get fetches a project by UUID.
