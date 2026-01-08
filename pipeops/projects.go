@@ -104,16 +104,16 @@ func (s *ProjectService) Get(ctx context.Context, projectUUID string) (*ProjectR
 
 // CreateProjectRequest represents a request to create a project.
 type CreateProjectRequest struct {
-	Name          string                 `json:"name"`
-	Description   string                 `json:"description,omitempty"`
-	ServerID      string                 `json:"server_id"`
-	EnvironmentID string                 `json:"environment_id"`
-	Repository    string                 `json:"repository"`
-	Branch        string                 `json:"branch"`
-	BuildCommand  string                 `json:"build_command,omitempty"`
-	StartCommand  string                 `json:"start_command,omitempty"`
-	Port          int                    `json:"port,omitempty"`
-	Framework     string                 `json:"framework,omitempty"`
+	Name          string         `json:"name"`
+	Description   string         `json:"description,omitempty"`
+	ServerID      string         `json:"server_id"`
+	EnvironmentID string         `json:"environment_id"`
+	Repository    string         `json:"repository"`
+	Branch        string         `json:"branch"`
+	BuildCommand  string         `json:"build_command,omitempty"`
+	StartCommand  string         `json:"start_command,omitempty"`
+	Port          int            `json:"port,omitempty"`
+	Framework     string         `json:"framework,omitempty"`
 	EnvVars       map[string]any `json:"env_vars,omitempty"`
 }
 

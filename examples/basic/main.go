@@ -37,7 +37,7 @@ func main() {
 		Password: password,
 	}
 
- loginResp, _, err := client.Auth.Login(ctx, loginReq)
+	loginResp, _, err := client.Auth.Login(ctx, loginReq)
 	if err != nil {
 		log.Fatalf("Login failed: %v", err)
 	}

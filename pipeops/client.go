@@ -446,7 +446,6 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 		}
 	}
 
-
 	// Handle request error
 	if err != nil {
 		select {
