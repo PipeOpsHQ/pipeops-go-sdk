@@ -381,6 +381,9 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 		return nil, fmt.Errorf("context must be non-nil")
 	}
 
+	safeURL := strings.ReplaceAll(req.URL.String(), "\n", "")
+	safeURL = strings.ReplaceAll(safeURL, "\r", "")
+
 	var resp *http.Response
 	var err error
 
@@ -390,8 +393,6 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 			// Calculate backoff delay with jitter
 			waitDuration := c.calculateBackoff(attempt)
 
-			safeURL := strings.ReplaceAll(req.URL.String(), "\n", "")
-			safeURL = strings.ReplaceAll(safeURL, "\r", "")
 			c.logger.Warn("Retrying request",
 				"attempt", attempt,
 				"max_attempts", c.retryConfig.MaxRetries,
@@ -431,8 +432,6 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 			//nolint:errcheck // Best effort drain before retry
 			io.Copy(io.Discard, resp.Body)
 			//nolint:errcheck // Best effort close before retry
-			safeURL := strings.ReplaceAll(req.URL.String(), "\n", "")
-			safeURL = strings.ReplaceAll(safeURL, "\r", "")
 			resp.Body.Close()
 		}
 
@@ -446,6 +445,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 			break
 		}
 	}
+
 
 	// Handle request error
 	if err != nil {
