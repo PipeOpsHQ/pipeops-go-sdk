@@ -98,7 +98,7 @@ func (s *BillingService) DeleteCard(ctx context.Context, cardUUID string) (*http
 
 // UpdateCard updates a payment card.
 func (s *BillingService) UpdateCard(ctx context.Context, cardUUID string, req *AddCardRequest) (*CardResponse, *http.Response, error) {
-	u := fmt.Sprintf("billing/workspace/cards%s", cardUUID)
+	u := fmt.Sprintf("billing/workspace/cards/%s", cardUUID)
 
 	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
 	if err != nil {
@@ -451,7 +451,7 @@ type SetActiveCardRequest struct {
 
 // SetActiveCard sets the active billing card.
 func (s *BillingService) SetActiveCard(ctx context.Context, cardUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("billing/workspace/cards%s", cardUUID)
+	u := fmt.Sprintf("billing/workspace/cards/%s", cardUUID)
 
 	req, err := s.client.NewRequest(http.MethodPut, u, nil)
 	if err != nil {

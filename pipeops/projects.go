@@ -86,7 +86,7 @@ func (s *ProjectService) List(ctx context.Context, opts *ProjectListOptions) (*P
 
 // Get fetches a project by UUID.
 func (s *ProjectService) Get(ctx context.Context, projectUUID string) (*ProjectResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/%s", projectUUID)
+	u := fmt.Sprintf("project/fetch/%s", projectUUID)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -119,7 +119,7 @@ type CreateProjectRequest struct {
 
 // Create creates a new project.
 func (s *ProjectService) Create(ctx context.Context, req *CreateProjectRequest) (*ProjectResponse, *http.Response, error) {
-	u := "project"
+	u := "project/create"
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
@@ -164,7 +164,7 @@ func (s *ProjectService) Update(ctx context.Context, projectUUID string, req *Up
 
 // Delete deletes a project.
 func (s *ProjectService) Delete(ctx context.Context, projectUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("project/%s", projectUUID)
+	u := fmt.Sprintf("project/delete/%s", projectUUID)
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {
@@ -389,9 +389,11 @@ func (s *ProjectService) Stop(ctx context.Context, projectUUID string) (*http.Re
 
 // MetricsRequest represents a metrics request.
 type MetricsRequest struct {
-	ProjectUUID string `json:"project_uuid"`
-	StartTime   string `json:"start_time,omitempty"`
-	EndTime     string `json:"end_time,omitempty"`
+	App          string `json:"app,omitempty" url:"app,omitempty"`
+	WorkspaceUUID string `json:"workspace_uuid,omitempty" url:"workspace_uuid,omitempty"`
+	ProjectUUID   string `json:"project_uuid,omitempty" url:"project_uuid,omitempty"`
+	StartTime     string `json:"start_time,omitempty" url:"start_time,omitempty"`
+	EndTime       string `json:"end_time,omitempty" url:"end_time,omitempty"`
 }
 
 // MetricsResponse represents metrics response.
@@ -407,15 +409,38 @@ type MetricsResponse struct {
 func (s *ProjectService) GetMetrics(ctx context.Context, req *MetricsRequest) (*MetricsResponse, *http.Response, error) {
 	u := "observability/project/summary"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if req != nil {
+		var err error
+		u, err = addOptions(u, req)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	metricsResp := new(MetricsResponse)
 	resp, err := s.client.Do(ctx, httpReq, metricsResp)
-	if err != nil {
+	if err == nil {
+		return metricsResp, resp, nil
+	}
+	if !isNotFound(err) {
 		return nil, resp, err
+	}
+
+	// Fallback to legacy POST behavior.
+	httpReq, reqErr := s.client.NewRequest(http.MethodPost, "observability/project/summary", req)
+	if reqErr != nil {
+		return nil, resp, err
+	}
+
+	metricsResp = new(MetricsResponse)
+	resp, postErr := s.client.Do(ctx, httpReq, metricsResp)
+	if postErr != nil {
+		return nil, resp, postErr
 	}
 
 	return metricsResp, resp, nil
@@ -428,7 +453,7 @@ type BulkDeleteRequest struct {
 
 // BulkDelete deletes multiple projects.
 func (s *ProjectService) BulkDelete(ctx context.Context, req *BulkDeleteRequest) (*http.Response, error) {
-	u := "project/delete"
+	u := "project/delete/bulk"
 
 	httpReq, err := s.client.NewRequest(http.MethodDelete, u, req)
 	if err != nil {
@@ -479,15 +504,37 @@ type CPUMetricsRequest struct {
 func (s *ProjectService) GetCPUMetrics(ctx context.Context, req *MetricsRequest) (*MetricsResponse, *http.Response, error) {
 	u := "observability/app/cpu"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if req != nil {
+		var err error
+		u, err = addOptions(u, req)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	metricsResp := new(MetricsResponse)
 	resp, err := s.client.Do(ctx, httpReq, metricsResp)
-	if err != nil {
+	if err == nil {
+		return metricsResp, resp, nil
+	}
+	if !isNotFound(err) {
 		return nil, resp, err
+	}
+
+	httpReq, reqErr := s.client.NewRequest(http.MethodPost, "observability/app/cpu", req)
+	if reqErr != nil {
+		return nil, resp, err
+	}
+
+	metricsResp = new(MetricsResponse)
+	resp, postErr := s.client.Do(ctx, httpReq, metricsResp)
+	if postErr != nil {
+		return nil, resp, postErr
 	}
 
 	return metricsResp, resp, nil
@@ -497,15 +544,37 @@ func (s *ProjectService) GetCPUMetrics(ctx context.Context, req *MetricsRequest)
 func (s *ProjectService) GetStorageMetrics(ctx context.Context, req *MetricsRequest) (*MetricsResponse, *http.Response, error) {
 	u := "observability/app/storage"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if req != nil {
+		var err error
+		u, err = addOptions(u, req)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	metricsResp := new(MetricsResponse)
 	resp, err := s.client.Do(ctx, httpReq, metricsResp)
-	if err != nil {
+	if err == nil {
+		return metricsResp, resp, nil
+	}
+	if !isNotFound(err) {
 		return nil, resp, err
+	}
+
+	httpReq, reqErr := s.client.NewRequest(http.MethodPost, "observability/app/storage", req)
+	if reqErr != nil {
+		return nil, resp, err
+	}
+
+	metricsResp = new(MetricsResponse)
+	resp, postErr := s.client.Do(ctx, httpReq, metricsResp)
+	if postErr != nil {
+		return nil, resp, postErr
 	}
 
 	return metricsResp, resp, nil
@@ -515,15 +584,37 @@ func (s *ProjectService) GetStorageMetrics(ctx context.Context, req *MetricsRequ
 func (s *ProjectService) GetMemoryMetrics(ctx context.Context, req *MetricsRequest) (*MetricsResponse, *http.Response, error) {
 	u := "observability/app/memory"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if req != nil {
+		var err error
+		u, err = addOptions(u, req)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	metricsResp := new(MetricsResponse)
 	resp, err := s.client.Do(ctx, httpReq, metricsResp)
-	if err != nil {
+	if err == nil {
+		return metricsResp, resp, nil
+	}
+	if !isNotFound(err) {
 		return nil, resp, err
+	}
+
+	httpReq, reqErr := s.client.NewRequest(http.MethodPost, "observability/app/memory", req)
+	if reqErr != nil {
+		return nil, resp, err
+	}
+
+	metricsResp = new(MetricsResponse)
+	resp, postErr := s.client.Do(ctx, httpReq, metricsResp)
+	if postErr != nil {
+		return nil, resp, postErr
 	}
 
 	return metricsResp, resp, nil
@@ -533,15 +624,37 @@ func (s *ProjectService) GetMemoryMetrics(ctx context.Context, req *MetricsReque
 func (s *ProjectService) GetNetworkIOMetrics(ctx context.Context, req *MetricsRequest) (*MetricsResponse, *http.Response, error) {
 	u := "observability/app/network-io"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if req != nil {
+		var err error
+		u, err = addOptions(u, req)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	metricsResp := new(MetricsResponse)
 	resp, err := s.client.Do(ctx, httpReq, metricsResp)
-	if err != nil {
+	if err == nil {
+		return metricsResp, resp, nil
+	}
+	if !isNotFound(err) {
 		return nil, resp, err
+	}
+
+	httpReq, reqErr := s.client.NewRequest(http.MethodPost, "observability/app/network-io", req)
+	if reqErr != nil {
+		return nil, resp, err
+	}
+
+	metricsResp = new(MetricsResponse)
+	resp, postErr := s.client.Do(ctx, httpReq, metricsResp)
+	if postErr != nil {
+		return nil, resp, postErr
 	}
 
 	return metricsResp, resp, nil
@@ -551,15 +664,37 @@ func (s *ProjectService) GetNetworkIOMetrics(ctx context.Context, req *MetricsRe
 func (s *ProjectService) GetControlPlaneMetrics(ctx context.Context, req *MetricsRequest) (*MetricsResponse, *http.Response, error) {
 	u := "observability/control-plane"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if req != nil {
+		var err error
+		u, err = addOptions(u, req)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	metricsResp := new(MetricsResponse)
 	resp, err := s.client.Do(ctx, httpReq, metricsResp)
-	if err != nil {
+	if err == nil {
+		return metricsResp, resp, nil
+	}
+	if !isNotFound(err) {
 		return nil, resp, err
+	}
+
+	httpReq, reqErr := s.client.NewRequest(http.MethodPost, "observability/control-plane", req)
+	if reqErr != nil {
+		return nil, resp, err
+	}
+
+	metricsResp = new(MetricsResponse)
+	resp, postErr := s.client.Do(ctx, httpReq, metricsResp)
+	if postErr != nil {
+		return nil, resp, postErr
 	}
 
 	return metricsResp, resp, nil
@@ -569,15 +704,37 @@ func (s *ProjectService) GetControlPlaneMetrics(ctx context.Context, req *Metric
 func (s *ProjectService) GetMetricsOverview(ctx context.Context, req *MetricsRequest) (*MetricsResponse, *http.Response, error) {
 	u := "observability/app/overview"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if req != nil {
+		var err error
+		u, err = addOptions(u, req)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	metricsResp := new(MetricsResponse)
 	resp, err := s.client.Do(ctx, httpReq, metricsResp)
-	if err != nil {
+	if err == nil {
+		return metricsResp, resp, nil
+	}
+	if !isNotFound(err) {
 		return nil, resp, err
+	}
+
+	httpReq, reqErr := s.client.NewRequest(http.MethodPost, "observability/app/overview", req)
+	if reqErr != nil {
+		return nil, resp, err
+	}
+
+	metricsResp = new(MetricsResponse)
+	resp, postErr := s.client.Do(ctx, httpReq, metricsResp)
+	if postErr != nil {
+		return nil, resp, postErr
 	}
 
 	return metricsResp, resp, nil

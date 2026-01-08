@@ -125,7 +125,7 @@ func (s *TeamService) InviteMember(ctx context.Context, teamUUID string, req *In
 
 // List lists all teams for the authenticated user.
 func (s *TeamService) List(ctx context.Context) (*TeamsResponse, *http.Response, error) {
-	u := "team"
+	u := "team/fetch"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -143,7 +143,7 @@ func (s *TeamService) List(ctx context.Context) (*TeamsResponse, *http.Response,
 
 // Get fetches a team by UUID.
 func (s *TeamService) Get(ctx context.Context, teamUUID string) (*TeamResponse, *http.Response, error) {
-	u := fmt.Sprintf("team/%s", teamUUID)
+	u := fmt.Sprintf("team/fetch/%s", teamUUID)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -161,7 +161,7 @@ func (s *TeamService) Get(ctx context.Context, teamUUID string) (*TeamResponse, 
 
 // Delete deletes a team.
 func (s *TeamService) Delete(ctx context.Context, teamUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("team/%s", teamUUID)
+	u := fmt.Sprintf("team/%s/delete", teamUUID)
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {
@@ -243,14 +243,14 @@ func (s *TeamService) UpdateMemberRole(ctx context.Context, teamUUID, memberUUID
 
 // AcceptInvitation accepts a team invitation.
 func (s *TeamService) AcceptInvitation(ctx context.Context, inviteToken string) (*http.Response, error) {
-	u := fmt.Sprintf("team/invite/accept/%s", inviteToken)
+	u := "team/accept-invite"
 
-	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, &AcceptInviteRequest{InviteID: inviteToken})
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := s.client.Do(ctx, req, nil)
+	resp, err := s.client.Do(ctx, httpReq, nil)
 	return resp, err
 }
 
@@ -265,4 +265,10 @@ func (s *TeamService) RejectInvitation(ctx context.Context, inviteToken string) 
 
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
+}
+
+// AcceptInviteRequest represents a request to accept a team invite.
+type AcceptInviteRequest struct {
+	InviteID    string `json:"invite_id"`
+	InviteEmail string `json:"invite_email,omitempty"`
 }

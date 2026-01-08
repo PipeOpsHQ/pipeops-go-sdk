@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // EventService handles communication with the events related
@@ -619,7 +620,7 @@ type VerifyCodeResponse struct {
 
 // VerifyProgramCode verifies a program verification code.
 func (s *PartnerParticipantService) VerifyProgramCode(ctx context.Context, code string) (*VerifyCodeResponse, *http.Response, error) {
-	u := "partners/participants/verify?code=" + code
+	u := "partners/participants/verify?verification_code=" + url.QueryEscape(code)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {

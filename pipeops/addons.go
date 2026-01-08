@@ -397,7 +397,7 @@ func (s *AddOnService) ViewDeploymentConfigs(ctx context.Context, addonUUID stri
 
 // AddDomain adds a domain to an add-on.
 func (s *AddOnService) AddDomain(ctx context.Context, addonUUID string, req *DomainRequest) (*http.Response, error) {
-	u := fmt.Sprintf("addons/%s/domain", addonUUID)
+	u := fmt.Sprintf("addons/domains/%s", addonUUID)
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {

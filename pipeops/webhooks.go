@@ -44,7 +44,7 @@ type CreateWebhookRequest struct {
 
 // Create creates a new webhook.
 func (s *WebhookService) Create(ctx context.Context, req *CreateWebhookRequest) (*WebhookResponse, *http.Response, error) {
-	u := "webhook/customer/webhook/create"
+	u := "customer-webhook/create"
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
@@ -62,7 +62,7 @@ func (s *WebhookService) Create(ctx context.Context, req *CreateWebhookRequest) 
 
 // List lists all webhooks.
 func (s *WebhookService) List(ctx context.Context) (*WebhooksResponse, *http.Response, error) {
-	u := "webhook/customer/webhooks"
+	u := "customer-webhook/fetch"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *WebhookService) List(ctx context.Context) (*WebhooksResponse, *http.Res
 
 // Get fetches a webhook by UUID.
 func (s *WebhookService) Get(ctx context.Context, webhookUUID string) (*WebhookResponse, *http.Response, error) {
-	u := fmt.Sprintf("webhook/customer/webhook/%s", webhookUUID)
+	u := fmt.Sprintf("customer-webhook/%s", webhookUUID)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -106,7 +106,14 @@ type UpdateWebhookRequest struct {
 
 // Update updates a webhook.
 func (s *WebhookService) Update(ctx context.Context, webhookUUID string, req *UpdateWebhookRequest) (*WebhookResponse, *http.Response, error) {
-	u := fmt.Sprintf("webhook/customer/webhook/%s", webhookUUID)
+	u := fmt.Sprintf("customer-webhook/%s", webhookUUID)
+	if req != nil && req.Active != nil {
+		action := "disable"
+		if *req.Active {
+			action = "enable"
+		}
+		u = fmt.Sprintf("customer-webhook/%s?action=%s", webhookUUID, action)
+	}
 
 	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
 	if err != nil {
@@ -124,7 +131,7 @@ func (s *WebhookService) Update(ctx context.Context, webhookUUID string, req *Up
 
 // Delete deletes a webhook.
 func (s *WebhookService) Delete(ctx context.Context, webhookUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("webhook/customer/webhook/%s", webhookUUID)
+	u := fmt.Sprintf("customer-webhook/%s", webhookUUID)
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {

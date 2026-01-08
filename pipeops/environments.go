@@ -42,7 +42,7 @@ type EnvironmentResponse struct {
 
 // List lists all environments.
 func (s *EnvironmentService) List(ctx context.Context) (*EnvironmentsResponse, *http.Response, error) {
-	u := "environment"
+	u := "environment/fetch"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -60,7 +60,7 @@ func (s *EnvironmentService) List(ctx context.Context) (*EnvironmentsResponse, *
 
 // Get fetches an environment by UUID.
 func (s *EnvironmentService) Get(ctx context.Context, envUUID string) (*EnvironmentResponse, *http.Response, error) {
-	u := fmt.Sprintf("environment/%s", envUUID)
+	u := fmt.Sprintf("environment/fetch/%s", envUUID)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -78,9 +78,11 @@ func (s *EnvironmentService) Get(ctx context.Context, envUUID string) (*Environm
 
 // CreateEnvironmentRequest represents a request to create an environment.
 type CreateEnvironmentRequest struct {
-	Name         string        `json:"name"`
-	WorkspaceID  string        `json:"workspace_id"`
-	EnvVariables []EnvVariable `json:"env_variables,omitempty"`
+	Name          string        `json:"name"`
+	WorkspaceID   string        `json:"workspace_id,omitempty"`
+	WorkspaceUUID string        `json:"workspace_uuid,omitempty"`
+	ClusterUUID   string        `json:"cluster_uuid,omitempty"`
+	EnvVariables  []EnvVariable `json:"env_variables,omitempty"`
 }
 
 // EnvVariable represents an environment variable.
@@ -93,7 +95,23 @@ type EnvVariable struct {
 func (s *EnvironmentService) Create(ctx context.Context, req *CreateEnvironmentRequest) (*EnvironmentResponse, *http.Response, error) {
 	u := "environment/create"
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	payload := &CreateEnvironmentRequest{
+		Name:          req.Name,
+		WorkspaceID:   req.WorkspaceID,
+		WorkspaceUUID: coalesceNonEmpty(req.WorkspaceUUID, req.WorkspaceID),
+		ClusterUUID:   req.ClusterUUID,
+		EnvVariables:  req.EnvVariables,
+	}
+
+	if payload.WorkspaceUUID != "" {
+		var err error
+		u, err = addOptions(u, &environmentCreateOptions{WorkspaceUUID: payload.WorkspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, payload)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,6 +123,10 @@ func (s *EnvironmentService) Create(ctx context.Context, req *CreateEnvironmentR
 	}
 
 	return envResp, resp, nil
+}
+
+type environmentCreateOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
 }
 
 // UpdateEnvironmentRequest represents a request to update an environment.
