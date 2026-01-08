@@ -26,7 +26,7 @@ func TestServerService_List_UsesClusterWorkspaceEndpoint(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
+		if _, err := w.Write([]byte(`{
 			"success": true,
 			"message": "ok",
 			"data": {
@@ -44,7 +44,9 @@ func TestServerService_List_UsesClusterWorkspaceEndpoint(t *testing.T) {
 					}
 				]
 			}
-		}`))
+		}`)); err != nil {
+			t.Fatalf("write response error: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -88,7 +90,7 @@ func TestServerService_Get_UsesClusterWorkspaceEndpoint(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
+		if _, err := w.Write([]byte(`{
 			"success": true,
 			"message": "ok",
 			"data": {
@@ -105,7 +107,9 @@ func TestServerService_Get_UsesClusterWorkspaceEndpoint(t *testing.T) {
 					}
 				]
 			}
-		}`))
+		}`)); err != nil {
+			t.Fatalf("write response error: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -150,7 +154,7 @@ func TestServerService_Create_UsesServerCreateEndpoint(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
+		if _, err := w.Write([]byte(`{
 			"status": "success",
 			"message": "created",
 			"data": {
@@ -162,7 +166,9 @@ func TestServerService_Create_UsesServerCreateEndpoint(t *testing.T) {
 					"status": "active"
 				}
 			}
-		}`))
+		}`)); err != nil {
+			t.Fatalf("write response error: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -212,7 +218,9 @@ func TestServerService_Delete_FallsBackOn404(t *testing.T) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"message":"not found"}`))
+			if _, err := w.Write([]byte(`{"message":"not found"}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 2:
 			if r.Method != http.MethodDelete {
 				t.Fatalf("method = %s, want %s", r.Method, http.MethodDelete)
@@ -237,4 +245,3 @@ func TestServerService_Delete_FallsBackOn404(t *testing.T) {
 		t.Fatalf("Servers.Delete error: %v", err)
 	}
 }
-

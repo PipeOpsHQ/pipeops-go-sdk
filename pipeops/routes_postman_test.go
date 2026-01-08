@@ -72,6 +72,7 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -86,9 +87,13 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				switch tt.name {
 				case "Create":
-					_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{"project":{"uuid":"p1"}}}`))
+					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"project":{"uuid":"p1"}}}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
 				case "Get":
-					_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{"project":{"uuid":"p1"}}}`))
+					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"project":{"uuid":"p1"}}}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
 				case "CPUMetrics":
 					if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
 						t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
@@ -96,7 +101,9 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 					if got := r.URL.Query().Get("app"); got != "project" {
 						t.Fatalf("app = %q, want %q", got, "project")
 					}
-					_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{"metrics":{}}}`))
+					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"metrics":{}}}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
 				default:
 					w.WriteHeader(http.StatusNoContent)
 				}
@@ -163,6 +170,7 @@ func TestTeamService_UsesPostmanRoutes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -189,7 +197,9 @@ func TestTeamService_UsesPostmanRoutes(t *testing.T) {
 				}
 
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{}}`))
+				if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{}}`)); writeErr != nil {
+					t.Fatalf("write response error: %v", writeErr)
+				}
 			}))
 			t.Cleanup(server.Close)
 
@@ -248,6 +258,7 @@ func TestEnvironmentService_UsesPostmanRoutes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -268,11 +279,17 @@ func TestEnvironmentService_UsesPostmanRoutes(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				switch tt.name {
 				case "List":
-					_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{"environments":[]}}`))
+					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"environments":[]}}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
 				case "Get", "Create":
-					_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{"environment":{"uuid":"e1"}}}`))
+					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"environment":{"uuid":"e1"}}}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
 				default:
-					_, _ = w.Write([]byte(`{"status":"success","message":"ok"}`))
+					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok"}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
 				}
 			}))
 			t.Cleanup(server.Close)
@@ -344,6 +361,7 @@ func TestWebhookService_UsesPostmanRoutes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -359,7 +377,9 @@ func TestWebhookService_UsesPostmanRoutes(t *testing.T) {
 				}
 
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{}}`))
+				if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{}}`)); writeErr != nil {
+					t.Fatalf("write response error: %v", writeErr)
+				}
 			}))
 			t.Cleanup(server.Close)
 
@@ -385,14 +405,18 @@ func TestMiscAndBillingAndAddons_RouteFixes(t *testing.T) {
 				t.Fatalf("verification_code = %q, want %q", got, "abc+123")
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{"valid":true}}`))
+			if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"valid":true}}`)); writeErr != nil {
+				t.Fatalf("write response error: %v", writeErr)
+			}
 			return
 		case r.Method == http.MethodPost && r.URL.Path == "/addons/domains/a1":
 			w.WriteHeader(http.StatusNoContent)
 			return
 		case r.Method == http.MethodPut && r.URL.Path == "/billing/workspace/cards/c1":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"status":"success","message":"ok","data":{"card":{"uuid":"c1"}}}`))
+			if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"card":{"uuid":"c1"}}}`)); writeErr != nil {
+				t.Fatalf("write response error: %v", writeErr)
+			}
 			return
 		default:
 			t.Fatalf("unexpected request: %s %s?%s", r.Method, r.URL.Path, r.URL.RawQuery)
@@ -420,4 +444,3 @@ func TestMiscAndBillingAndAddons_RouteFixes(t *testing.T) {
 		t.Fatalf("UpdateCard error: %v", err)
 	}
 }
-
