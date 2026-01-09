@@ -140,9 +140,36 @@ func (s *AddOnService) Deploy(ctx context.Context, req *DeployAddOnRequest) (*Ad
 	return deployResp, resp, nil
 }
 
+// ListDeploymentsOptions specifies optional parameters for listing deployments.
+type ListDeploymentsOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+	ProjectUUID   string `url:"project_uuid,omitempty"`
+}
+
 // ListDeployments lists all add-on deployments.
-func (s *AddOnService) ListDeployments(ctx context.Context) (*AddOnDeploymentsResponse, *http.Response, error) {
+func (s *AddOnService) ListDeployments(ctx context.Context, opts ...*ListDeploymentsOptions) (*AddOnDeploymentsResponse, *http.Response, error) {
 	u := "addons/deployments"
+
+	// Add query parameters if options provided
+	if len(opts) > 0 && opts[0] != nil {
+		opt := opts[0]
+		params := make([]string, 0)
+		if opt.WorkspaceUUID != "" {
+			params = append(params, "workspace_uuid="+opt.WorkspaceUUID)
+		}
+		if opt.ProjectUUID != "" {
+			params = append(params, "project_uuid="+opt.ProjectUUID)
+		}
+		if len(params) > 0 {
+			u = u + "?"
+			for i, p := range params {
+				if i > 0 {
+					u += "&"
+				}
+				u += p
+			}
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
