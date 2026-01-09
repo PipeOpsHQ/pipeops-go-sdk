@@ -119,6 +119,10 @@ func (s *ProjectService) listFetch(ctx context.Context, opts *ProjectListOptions
 	queryOpts := *opts
 	queryOpts.WorkspaceUUID = workspaceUUID
 	queryOpts.WorkspaceID = ""
+	// Default to fetching all projects if no limit specified
+	if queryOpts.Limit == 0 {
+		queryOpts.Limit = 1000
+	}
 
 	var err error
 	u, err = addOptions(u, &queryOpts)
