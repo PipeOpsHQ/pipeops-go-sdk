@@ -3,6 +3,7 @@ package pipeops
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -68,6 +69,26 @@ type ProjectListOptions struct {
 
 // List lists all projects.
 func (s *ProjectService) List(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
+	projectsResp, resp, err := s.listFetchNames(ctx, opts)
+	if err == nil {
+		return projectsResp, resp, nil
+	}
+	if !isNotFound(err) {
+		return nil, resp, err
+	}
+
+	projectsResp, resp, err = s.listLegacyProjects(ctx, opts)
+	if err == nil {
+		return projectsResp, resp, nil
+	}
+	if err != nil && !isNotFound(err) {
+		return nil, resp, err
+	}
+
+	return s.listViaWorkspaces(ctx, opts)
+}
+
+func (s *ProjectService) listFetchNames(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
 	u := "project/fetch-names"
 	if opts != nil {
 		workspaceUUID := coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID)
@@ -124,6 +145,155 @@ type projectFetchNamesProject struct {
 	UUID string `json:"uuid,omitempty"`
 	Name string `json:"name,omitempty"`
 	ID   jsonID `json:"id,omitempty"`
+}
+
+type legacyProjectsResponse struct {
+	Success bool   `json:"success,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+	Data    struct {
+		Projects []projectFetchNamesProject `json:"projects,omitempty"`
+	} `json:"data,omitempty"`
+}
+
+func (s *ProjectService) listLegacyProjects(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
+	u := "projects"
+	if opts != nil {
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rawResp := new(legacyProjectsResponse)
+	resp, err := s.client.Do(ctx, req, rawResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	projectsResp := &ProjectsResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+	for _, project := range rawResp.Data.Projects {
+		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
+			ID:   project.ID.String(),
+			UUID: project.UUID,
+			Name: project.Name,
+		})
+	}
+
+	return projectsResp, resp, nil
+}
+
+type workspaceListEnvelope struct {
+	Success bool            `json:"success,omitempty"`
+	Status  string          `json:"status,omitempty"`
+	Message string          `json:"message,omitempty"`
+	Data    json.RawMessage `json:"data,omitempty"`
+}
+
+type workspaceListItem struct {
+	UUID string `json:"uuid,omitempty"`
+}
+
+type workspaceFetchResponse struct {
+	Success bool   `json:"success,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+	Data    struct {
+		Workspace struct {
+			Projects []projectFetchNamesProject `json:"projects,omitempty"`
+		} `json:"workspace,omitempty"`
+	} `json:"data,omitempty"`
+}
+
+func (s *ProjectService) listViaWorkspaces(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
+	workspaceUUID := ""
+	if opts != nil {
+		workspaceUUID = coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID)
+	}
+
+	if workspaceUUID != "" {
+		return s.listWorkspaceProjects(ctx, workspaceUUID)
+	}
+
+	workspaces, resp, err := s.listWorkspaceUUIDs(ctx)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	projectsResp := &ProjectsResponse{
+		Status:  "success",
+		Message: "ok",
+	}
+
+	seen := make(map[string]struct{})
+	lastResp := resp
+	for _, workspace := range workspaces {
+		wsProjects, wsResp, wsErr := s.listWorkspaceProjects(ctx, workspace.UUID)
+		if wsResp != nil {
+			lastResp = wsResp
+		}
+		if wsErr != nil {
+			return nil, lastResp, wsErr
+		}
+		for _, project := range wsProjects.Data.Projects {
+			if project.UUID == "" {
+				continue
+			}
+			if _, ok := seen[project.UUID]; ok {
+				continue
+			}
+			seen[project.UUID] = struct{}{}
+			projectsResp.Data.Projects = append(projectsResp.Data.Projects, project)
+		}
+	}
+
+	return projectsResp, lastResp, nil
+}
+
+func (s *ProjectService) listWorkspaceUUIDs(ctx context.Context) ([]workspaceListItem, *http.Response, error) {
+	return fetchWorkspaceList(ctx, s.client)
+}
+
+func (s *ProjectService) listWorkspaceProjects(ctx context.Context, workspaceUUID string) (*ProjectsResponse, *http.Response, error) {
+	if workspaceUUID == "" {
+		return nil, nil, errors.New("workspace UUID cannot be empty")
+	}
+
+	u := fmt.Sprintf("workspace/fetch/%s", workspaceUUID)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rawResp := new(workspaceFetchResponse)
+	resp, err := s.client.Do(ctx, req, rawResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	projectsResp := &ProjectsResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+
+	for _, project := range rawResp.Data.Workspace.Projects {
+		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
+			ID:   project.ID.String(),
+			UUID: project.UUID,
+			Name: project.Name,
+		})
+	}
+
+	return projectsResp, resp, nil
 }
 
 type jsonID struct {

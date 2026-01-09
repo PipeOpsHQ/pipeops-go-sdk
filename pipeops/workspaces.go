@@ -2,6 +2,7 @@ package pipeops
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -58,12 +59,31 @@ func (s *WorkspaceService) Create(ctx context.Context, req *CreateWorkspaceReque
 		return nil, nil, err
 	}
 
-	workspaceResp := new(WorkspaceResponse)
-	resp, err := s.client.Do(ctx, httpReq, workspaceResp)
+	rawResp := new(workspaceListEnvelope)
+	resp, err := s.client.Do(ctx, httpReq, rawResp)
 	if err != nil {
 		return nil, resp, err
 	}
 
+	workspaceResp := &WorkspaceResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+
+	var workspace Workspace
+	if len(rawResp.Data) != 0 {
+		if err := json.Unmarshal(rawResp.Data, &workspace); err != nil {
+			var wrapped struct {
+				Workspace Workspace `json:"workspace,omitempty"`
+			}
+			if err := json.Unmarshal(rawResp.Data, &wrapped); err != nil {
+				return nil, resp, err
+			}
+			workspace = wrapped.Workspace
+		}
+	}
+
+	workspaceResp.Data.Workspace = workspace
 	return workspaceResp, resp, nil
 }
 
@@ -76,11 +96,34 @@ func (s *WorkspaceService) List(ctx context.Context) (*WorkspacesResponse, *http
 		return nil, nil, err
 	}
 
-	workspacesResp := new(WorkspacesResponse)
-	resp, err := s.client.Do(ctx, req, workspacesResp)
+	rawResp := new(workspaceListEnvelope)
+	resp, err := s.client.Do(ctx, req, rawResp)
 	if err != nil {
 		return nil, resp, err
 	}
+
+	workspacesResp := &WorkspacesResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+
+	if len(rawResp.Data) == 0 {
+		return workspacesResp, resp, nil
+	}
+
+	var workspaces []Workspace
+	if err := json.Unmarshal(rawResp.Data, &workspaces); err == nil {
+		workspacesResp.Data.Workspaces = workspaces
+		return workspacesResp, resp, nil
+	}
+
+	var wrapped struct {
+		Workspaces []Workspace `json:"workspaces,omitempty"`
+	}
+	if err := json.Unmarshal(rawResp.Data, &wrapped); err != nil {
+		return nil, resp, err
+	}
+	workspacesResp.Data.Workspaces = wrapped.Workspaces
 
 	return workspacesResp, resp, nil
 }

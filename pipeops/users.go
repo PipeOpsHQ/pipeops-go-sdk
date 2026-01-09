@@ -95,7 +95,7 @@ type UpdateNotificationSettingsRequest struct {
 
 // UpdateNotificationSettings updates notification settings.
 func (s *UserService) UpdateNotificationSettings(ctx context.Context, req *UpdateNotificationSettingsRequest) (*UserSettingsResponse, *http.Response, error) {
-	u := "user/settings/notification"
+	u := "user-settings/notification"
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {

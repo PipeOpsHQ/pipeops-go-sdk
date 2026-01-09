@@ -398,6 +398,11 @@ func (s *AddOnService) ViewDeploymentConfigs(ctx context.Context, addonUUID stri
 // AddDomain adds a domain to an add-on.
 func (s *AddOnService) AddDomain(ctx context.Context, addonUUID string, req *DomainRequest) (*http.Response, error) {
 	u := fmt.Sprintf("addons/domains/%s", addonUUID)
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &addonWorkspaceOptions{Workspace: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
@@ -406,6 +411,10 @@ func (s *AddOnService) AddDomain(ctx context.Context, addonUUID string, req *Dom
 
 	resp, err := s.client.Do(ctx, httpReq, nil)
 	return resp, err
+}
+
+type addonWorkspaceOptions struct {
+	Workspace string `url:"workspace"`
 }
 
 // BulkDeleteDeploymentsRequest represents a request to bulk delete deployments.

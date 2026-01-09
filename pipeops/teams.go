@@ -125,6 +125,28 @@ func (s *TeamService) InviteMember(ctx context.Context, teamUUID string, req *In
 
 // List lists all teams for the authenticated user.
 func (s *TeamService) List(ctx context.Context) (*TeamsResponse, *http.Response, error) {
+	workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client)
+	if wsErr == nil {
+		u, err := addOptions("team/fetch", &teamFetchOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		req, err := s.client.NewRequest(http.MethodGet, u, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		teamsResp := new(TeamsResponse)
+		resp, err := s.client.Do(ctx, req, teamsResp)
+		if err == nil {
+			return teamsResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	u := "team/fetch"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -271,4 +293,8 @@ func (s *TeamService) RejectInvitation(ctx context.Context, inviteToken string) 
 type AcceptInviteRequest struct {
 	InviteID    string `json:"invite_id"`
 	InviteEmail string `json:"invite_email,omitempty"`
+}
+
+type teamFetchOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid"`
 }

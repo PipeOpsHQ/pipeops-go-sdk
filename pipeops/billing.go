@@ -86,6 +86,11 @@ func (s *BillingService) ListCards(ctx context.Context) (*CardsResponse, *http.R
 // DeleteCard deletes a payment card.
 func (s *BillingService) DeleteCard(ctx context.Context, cardUUID string) (*http.Response, error) {
 	u := fmt.Sprintf("billing/cards/%s", cardUUID)
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &billingWorkspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {
@@ -99,6 +104,11 @@ func (s *BillingService) DeleteCard(ctx context.Context, cardUUID string) (*http
 // UpdateCard updates a payment card.
 func (s *BillingService) UpdateCard(ctx context.Context, cardUUID string, req *AddCardRequest) (*CardResponse, *http.Response, error) {
 	u := fmt.Sprintf("billing/workspace/cards/%s", cardUUID)
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &billingWorkspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
 	if err != nil {
@@ -117,6 +127,11 @@ func (s *BillingService) UpdateCard(ctx context.Context, cardUUID string, req *A
 // ListWorkspaceCards lists workspace payment cards.
 func (s *BillingService) ListWorkspaceCards(ctx context.Context) (*CardsResponse, *http.Response, error) {
 	u := "billing/workspace/cards"
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &billingWorkspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -135,6 +150,11 @@ func (s *BillingService) ListWorkspaceCards(ctx context.Context) (*CardsResponse
 // GetActiveCard retrieves the active workspace billing card.
 func (s *BillingService) GetActiveCard(ctx context.Context) (*CardResponse, *http.Response, error) {
 	u := "billing/workspace/cards/active"
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &billingWorkspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -452,6 +472,11 @@ type SetActiveCardRequest struct {
 // SetActiveCard sets the active billing card.
 func (s *BillingService) SetActiveCard(ctx context.Context, cardUUID string) (*http.Response, error) {
 	u := fmt.Sprintf("billing/workspace/cards/%s", cardUUID)
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &billingWorkspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodPut, u, nil)
 	if err != nil {
@@ -632,6 +657,11 @@ func (s *BillingService) ResetSubscription(ctx context.Context, userUUID string)
 // GetWorkspaceCards retrieves cards for a workspace.
 func (s *BillingService) GetWorkspaceCards(ctx context.Context) (*CardsResponse, *http.Response, error) {
 	u := "billing/workspace/cards"
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &billingWorkspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -749,4 +779,8 @@ func (s *BillingService) UpdatePaymentMethod(ctx context.Context, req *UpdatePay
 
 	resp, err := s.client.Do(ctx, httpReq, nil)
 	return resp, err
+}
+
+type billingWorkspaceUUIDOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid"`
 }

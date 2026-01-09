@@ -45,3 +45,8 @@ site/
 
 # Ignore postman files
 postman/
+
+# Local tool caches (not part of repo)
+.gocache/
+.gomodcache/
+.golangci-cache/

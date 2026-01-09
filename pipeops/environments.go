@@ -42,6 +42,28 @@ type EnvironmentResponse struct {
 
 // List lists all environments.
 func (s *EnvironmentService) List(ctx context.Context) (*EnvironmentsResponse, *http.Response, error) {
+	workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client)
+	if wsErr == nil {
+		u, err := addOptions("environment/fetch", &environmentFetchOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		req, err := s.client.NewRequest(http.MethodGet, u, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		envsResp := new(EnvironmentsResponse)
+		resp, err := s.client.Do(ctx, req, envsResp)
+		if err == nil {
+			return envsResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	u := "environment/fetch"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -127,6 +149,11 @@ func (s *EnvironmentService) Create(ctx context.Context, req *CreateEnvironmentR
 
 type environmentCreateOptions struct {
 	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+}
+
+type environmentFetchOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid"`
+	ClusterUUID   string `url:"cluster_uuid,omitempty"`
 }
 
 // UpdateEnvironmentRequest represents a request to update an environment.
