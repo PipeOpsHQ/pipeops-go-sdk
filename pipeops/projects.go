@@ -19,11 +19,11 @@ type ProjectService struct {
 
 // Project represents a PipeOps project.
 type Project struct {
-	ID            string     `json:"id,omitempty"`
-	UUID          string     `json:"uuid,omitempty"`
-	Name          string     `json:"name,omitempty"`
-	Description   string     `json:"description,omitempty"`
-	Status        string     `json:"status,omitempty"`
+	ID            jsonID     `json:"ID,omitempty"`
+	UUID          string     `json:"UUID,omitempty"`
+	Name          string     `json:"Name,omitempty"`
+	Description   string     `json:"Description,omitempty"`
+	Status        string     `json:"Status,omitempty"`
 	ServerID      string     `json:"server_id,omitempty"`
 	EnvironmentID string     `json:"environment_id,omitempty"`
 	WorkspaceID   string     `json:"workspace_id,omitempty"`
@@ -153,7 +153,7 @@ func (s *ProjectService) listFetch(ctx context.Context, opts *ProjectListOptions
 
 	for _, project := range projects {
 		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
-			ID:     project.ID.String(),
+			ID:     project.ID,
 			UUID:   project.UUID,
 			Name:   project.Name,
 			Status: project.Status,
@@ -237,7 +237,7 @@ func (s *ProjectService) listFetchNames(ctx context.Context, opts *ProjectListOp
 
 	for _, project := range rawResp.Data.Projects {
 		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
-			ID:   project.ID.String(),
+			ID:   project.ID,
 			UUID: project.UUID,
 			Name: project.Name,
 		})
@@ -302,7 +302,7 @@ func (s *ProjectService) listLegacyProjects(ctx context.Context, opts *ProjectLi
 	}
 	for _, project := range rawResp.Data.Projects {
 		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
-			ID:   project.ID.String(),
+			ID:   project.ID,
 			UUID: project.UUID,
 			Name: project.Name,
 		})
@@ -406,7 +406,7 @@ func (s *ProjectService) listWorkspaceProjects(ctx context.Context, workspaceUUI
 
 	for _, project := range rawResp.Data.Workspace.Projects {
 		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
-			ID:   project.ID.String(),
+			ID:   project.ID,
 			UUID: project.UUID,
 			Name: project.Name,
 		})

@@ -31,7 +31,7 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 				if len(projects.Data.Projects) != 1 {
 					return fmt.Errorf("projects len = %d, want %d", len(projects.Data.Projects), 1)
 				}
-				if got := projects.Data.Projects[0].ID; got != "1487" {
+				if got := projects.Data.Projects[0].ID.String(); got != "1487" {
 					return fmt.Errorf("project id = %q, want %q", got, "1487")
 				}
 				return nil
@@ -209,7 +209,7 @@ func TestProjectService_List_UsesProjectFetchEndpoint_WhenWorkspaceUUIDProvided(
 	if len(projects.Data.Projects) != 1 {
 		t.Fatalf("projects len = %d, want %d", len(projects.Data.Projects), 1)
 	}
-	if got := projects.Data.Projects[0].ID; got != "1487" {
+	if got := projects.Data.Projects[0].ID.String(); got != "1487" {
 		t.Fatalf("project id = %q, want %q", got, "1487")
 	}
 }
@@ -654,7 +654,7 @@ func TestProjectService_List_FallsBackToLegacyProjectsEndpoint_OnNotFound(t *tes
 	if len(projects.Data.Projects) != 1 {
 		t.Fatalf("projects len = %d, want %d", len(projects.Data.Projects), 1)
 	}
-	if got := projects.Data.Projects[0].ID; got != "1487" {
+	if got := projects.Data.Projects[0].ID.String(); got != "1487" {
 		t.Fatalf("project id = %q, want %q", got, "1487")
 	}
 }
@@ -718,7 +718,7 @@ func TestProjectService_List_FallsBackToWorkspaceRoutes_OnNotFound(t *testing.T)
 	if len(projects.Data.Projects) != 1 {
 		t.Fatalf("projects len = %d, want %d", len(projects.Data.Projects), 1)
 	}
-	if got := projects.Data.Projects[0].ID; got != "1487" {
+	if got := projects.Data.Projects[0].ID.String(); got != "1487" {
 		t.Fatalf("project id = %q, want %q", got, "1487")
 	}
 }
