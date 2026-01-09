@@ -145,6 +145,118 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 	}
 }
 
+func TestProjectService_List_UsesProjectFetchEndpoint_WhenWorkspaceUUIDProvided(t *testing.T) {
+	t.Parallel()
+
+	const wantWorkspaceUUID = "w1"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+		}
+		if r.URL.Path != "/project/fetch" {
+			t.Fatalf("path = %s, want %s", r.URL.Path, "/project/fetch")
+		}
+		if got := r.URL.Query().Get("workspace_uuid"); got != wantWorkspaceUUID {
+			t.Fatalf("workspace_uuid = %q, want %q", got, wantWorkspaceUUID)
+		}
+		if got := r.URL.Query().Get("limit"); got != "30" {
+			t.Fatalf("limit = %q, want %q", got, "30")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if _, writeErr := w.Write([]byte(`{"data":{"projects":[{"UUID":"p1","Name":"proj","ID":1487}]},"message":"ok","success":true}`)); writeErr != nil {
+			t.Fatalf("write response error: %v", writeErr)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient error: %v", err)
+	}
+
+	projects, _, err := client.Projects.List(context.Background(), &ProjectListOptions{WorkspaceUUID: wantWorkspaceUUID, Limit: 30})
+	if err != nil {
+		t.Fatalf("Projects.List error: %v", err)
+	}
+	if len(projects.Data.Projects) != 1 {
+		t.Fatalf("projects len = %d, want %d", len(projects.Data.Projects), 1)
+	}
+	if got := projects.Data.Projects[0].ID; got != "1487" {
+		t.Fatalf("project id = %q, want %q", got, "1487")
+	}
+}
+
+func TestProjectService_Get_FallsBackToWorkspaceUUIDQuery_OnNotFound(t *testing.T) {
+	t.Parallel()
+
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		switch calls {
+		case 1:
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+			}
+			if r.URL.Path != "/project/fetch/p1" {
+				t.Fatalf("path = %s, want %s", r.URL.Path, "/project/fetch/p1")
+			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "" {
+				t.Fatalf("workspace_uuid = %q, want empty", got)
+			}
+			w.WriteHeader(http.StatusNotFound)
+			if _, writeErr := w.Write([]byte(`{"message":"not found"}`)); writeErr != nil {
+				t.Fatalf("write response error: %v", writeErr)
+			}
+			return
+		case 2:
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+			}
+			if r.URL.Path != "/workspace" {
+				t.Fatalf("path = %s, want %s", r.URL.Path, "/workspace")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if _, writeErr := w.Write([]byte(`{"data":[{"UUID":"w1"}],"message":"ok","success":true}`)); writeErr != nil {
+				t.Fatalf("write response error: %v", writeErr)
+			}
+			return
+		case 3:
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+			}
+			if r.URL.Path != "/project/fetch/p1" {
+				t.Fatalf("path = %s, want %s", r.URL.Path, "/project/fetch/p1")
+			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+				t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if _, writeErr := w.Write([]byte(`{"data":{"project":{"uuid":"p1"}},"message":"ok","success":true}`)); writeErr != nil {
+				t.Fatalf("write response error: %v", writeErr)
+			}
+			return
+		default:
+			t.Fatalf("unexpected call %d", calls)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient error: %v", err)
+	}
+
+	_, _, err = client.Projects.Get(context.Background(), "p1")
+	if err != nil {
+		t.Fatalf("Projects.Get error: %v", err)
+	}
+	if calls != 3 {
+		t.Fatalf("calls = %d, want %d", calls, 3)
+	}
+}
+
 func TestProjectService_List_FallsBackToLegacyProjectsEndpoint_OnNotFound(t *testing.T) {
 	t.Parallel()
 

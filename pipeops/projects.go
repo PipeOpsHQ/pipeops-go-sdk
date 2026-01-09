@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // ProjectService handles communication with the project related
@@ -69,11 +70,26 @@ type ProjectListOptions struct {
 
 // List lists all projects.
 func (s *ProjectService) List(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
+	workspaceUUID := ""
+	if opts != nil {
+		workspaceUUID = coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID)
+	}
+
+	if workspaceUUID != "" {
+		projectsResp, resp, err := s.listFetch(ctx, opts)
+		if err == nil {
+			return projectsResp, resp, nil
+		}
+		if err != nil && !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	projectsResp, resp, err := s.listFetchNames(ctx, opts)
 	if err == nil {
 		return projectsResp, resp, nil
 	}
-	if !isNotFound(err) {
+	if err != nil && !isNotFound(err) {
 		return nil, resp, err
 	}
 
@@ -86,6 +102,94 @@ func (s *ProjectService) List(ctx context.Context, opts *ProjectListOptions) (*P
 	}
 
 	return s.listViaWorkspaces(ctx, opts)
+}
+
+func (s *ProjectService) listFetch(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
+	if opts == nil {
+		return nil, nil, errors.New("project list options cannot be nil")
+	}
+
+	workspaceUUID := coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID)
+	if workspaceUUID == "" {
+		return nil, nil, errors.New("workspace UUID cannot be empty")
+	}
+
+	u := "project/fetch"
+	queryOpts := *opts
+	queryOpts.WorkspaceUUID = workspaceUUID
+	queryOpts.WorkspaceID = ""
+
+	var err error
+	u, err = addOptions(u, &queryOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rawResp := new(projectFetchEnvelope)
+	resp, err := s.client.Do(ctx, req, rawResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	projectsResp := &ProjectsResponse{
+		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
+		Message: rawResp.Message,
+	}
+
+	projects, err := parseProjectsFromEnvelopeData(rawResp.Data)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	for _, project := range projects {
+		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
+			ID:   project.ID.String(),
+			UUID: project.UUID,
+			Name: project.Name,
+		})
+	}
+
+	return projectsResp, resp, nil
+}
+
+type projectFetchEnvelope struct {
+	Success bool            `json:"success,omitempty"`
+	Status  string          `json:"status,omitempty"`
+	Message string          `json:"message,omitempty"`
+	Data    json.RawMessage `json:"data,omitempty"`
+}
+
+func parseProjectsFromEnvelopeData(data json.RawMessage) ([]projectFetchNamesProject, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var asArray []projectFetchNamesProject
+	if err := json.Unmarshal(data, &asArray); err == nil {
+		return asArray, nil
+	}
+
+	var asObject map[string]json.RawMessage
+	if err := json.Unmarshal(data, &asObject); err != nil {
+		return nil, err
+	}
+
+	for key, value := range asObject {
+		if strings.EqualFold(key, "projects") {
+			var projects []projectFetchNamesProject
+			if err := json.Unmarshal(value, &projects); err != nil {
+				return nil, err
+			}
+			return projects, nil
+		}
+	}
+
+	return nil, errors.New("projects field missing from response data")
 }
 
 func (s *ProjectService) listFetchNames(ctx context.Context, opts *ProjectListOptions) (*ProjectsResponse, *http.Response, error) {
@@ -343,6 +447,27 @@ func (s *ProjectService) Get(ctx context.Context, projectUUID string) (*ProjectR
 
 	projectResp := new(ProjectResponse)
 	resp, err := s.client.Do(ctx, req, projectResp)
+	if err == nil {
+		return projectResp, resp, nil
+	}
+	if !isNotFound(err) {
+		return nil, resp, err
+	}
+
+	workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client)
+	if wsErr == nil && workspaceUUID != "" {
+		if withWorkspace, optErr := addOptions(u, &projectFetchNamesOptions{WorkspaceUUID: workspaceUUID}); optErr == nil {
+			u = withWorkspace
+		}
+	}
+
+	req, reqErr := s.client.NewRequest(http.MethodGet, u, nil)
+	if reqErr != nil {
+		return nil, resp, reqErr
+	}
+
+	projectResp = new(ProjectResponse)
+	resp, err = s.client.Do(ctx, req, projectResp)
 	if err != nil {
 		return nil, resp, err
 	}
