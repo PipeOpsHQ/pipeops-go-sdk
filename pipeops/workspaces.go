@@ -25,6 +25,47 @@ type Workspace struct {
 	UpdatedAt   *Timestamp `json:"updated_at,omitempty"`
 }
 
+func (w *Workspace) UnmarshalJSON(data []byte) error {
+	type workspaceWire struct {
+		ID jsonID `json:"id,omitempty"`
+
+		UUID        string `json:"uuid,omitempty"`
+		Name        string `json:"name,omitempty"`
+		Description string `json:"description,omitempty"`
+		OwnerID     string `json:"owner_id,omitempty"`
+		TeamID      string `json:"team_id,omitempty"`
+
+		CreatedAt    *Timestamp `json:"created_at,omitempty"`
+		UpdatedAt    *Timestamp `json:"updated_at,omitempty"`
+		CreatedAtAlt *Timestamp `json:"CreatedAt,omitempty"`
+		UpdatedAtAlt *Timestamp `json:"UpdatedAt,omitempty"`
+	}
+
+	var tmp workspaceWire
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+
+	w.ID = tmp.ID.String()
+	w.UUID = tmp.UUID
+	w.Name = tmp.Name
+	w.Description = tmp.Description
+	w.OwnerID = tmp.OwnerID
+	w.TeamID = tmp.TeamID
+
+	w.CreatedAt = tmp.CreatedAt
+	if w.CreatedAt == nil {
+		w.CreatedAt = tmp.CreatedAtAlt
+	}
+
+	w.UpdatedAt = tmp.UpdatedAt
+	if w.UpdatedAt == nil {
+		w.UpdatedAt = tmp.UpdatedAtAlt
+	}
+
+	return nil
+}
+
 // WorkspacesResponse represents a list of workspaces response.
 type WorkspacesResponse struct {
 	Status  string `json:"status"`
