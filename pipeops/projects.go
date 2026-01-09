@@ -149,9 +149,10 @@ func (s *ProjectService) listFetch(ctx context.Context, opts *ProjectListOptions
 
 	for _, project := range projects {
 		projectsResp.Data.Projects = append(projectsResp.Data.Projects, Project{
-			ID:   project.ID.String(),
-			UUID: project.UUID,
-			Name: project.Name,
+			ID:     project.ID.String(),
+			UUID:   project.UUID,
+			Name:   project.Name,
+			Status: project.Status,
 		})
 	}
 
@@ -182,11 +183,19 @@ func parseProjectsFromEnvelopeData(data json.RawMessage) ([]projectFetchNamesPro
 
 	for key, value := range asObject {
 		if strings.EqualFold(key, "projects") {
+			// Try parsing as array first
 			var projects []projectFetchNamesProject
-			if err := json.Unmarshal(value, &projects); err != nil {
+			if err := json.Unmarshal(value, &projects); err == nil {
+				return projects, nil
+			}
+			// Try parsing as paginated object with "rows" field
+			var paginated struct {
+				Rows []projectFetchNamesProject `json:"rows"`
+			}
+			if err := json.Unmarshal(value, &paginated); err != nil {
 				return nil, err
 			}
-			return projects, nil
+			return paginated.Rows, nil
 		}
 	}
 
@@ -247,9 +256,10 @@ type projectFetchNamesResponse struct {
 }
 
 type projectFetchNamesProject struct {
-	UUID string `json:"uuid,omitempty"`
-	Name string `json:"name,omitempty"`
-	ID   jsonID `json:"id,omitempty"`
+	UUID   string `json:"UUID,omitempty"`
+	Name   string `json:"Name,omitempty"`
+	Status string `json:"Status,omitempty"`
+	ID     jsonID `json:"ID,omitempty"`
 }
 
 type legacyProjectsResponse struct {

@@ -15,24 +15,26 @@ type AddOnService struct {
 // AddOn represents a PipeOps add-on.
 type AddOn struct {
 	ID          string     `json:"id,omitempty"`
+	UID         string     `json:"UID,omitempty"`
 	UUID        string     `json:"uuid,omitempty"`
-	Name        string     `json:"name,omitempty"`
-	Description string     `json:"description,omitempty"`
-	Category    string     `json:"category,omitempty"`
+	Name        string     `json:"Name,omitempty"`
+	Description string     `json:"Description,omitempty"`
+	Category    string     `json:"Category,omitempty"`
 	Version     string     `json:"version,omitempty"`
 	Icon        string     `json:"icon,omitempty"`
-	Status      string     `json:"status,omitempty"`
+	ImageURL    string     `json:"ImageURL,omitempty"`
+	Status      string     `json:"SubmissionStatus,omitempty"`
+	IsFeatured  bool       `json:"IsFeatured,omitempty"`
+	IsVerified  bool       `json:"IsVerified,omitempty"`
 	CreatedAt   *Timestamp `json:"created_at,omitempty"`
 	UpdatedAt   *Timestamp `json:"updated_at,omitempty"`
 }
 
 // AddOnsResponse represents a list of add-ons response.
 type AddOnsResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		AddOns []AddOn `json:"addons"`
-	} `json:"data"`
+	Status  string  `json:"status"`
+	Message string  `json:"message"`
+	Data    []AddOn `json:"data"`
 }
 
 // AddOnResponse represents a single add-on response.
