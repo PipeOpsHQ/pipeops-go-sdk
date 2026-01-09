@@ -455,20 +455,7 @@ func (j jsonID) String() string {
 func (s *ProjectService) Get(ctx context.Context, projectUUID string) (*ProjectResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/fetch/%s", projectUUID)
 
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	projectResp := new(ProjectResponse)
-	resp, err := s.client.Do(ctx, req, projectResp)
-	if err == nil {
-		return projectResp, resp, nil
-	}
-	if !isNotFound(err) {
-		return nil, resp, err
-	}
-
+	// Always try to include workspace_uuid as the API requires it
 	workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client)
 	if wsErr == nil && workspaceUUID != "" {
 		if withWorkspace, optErr := addOptions(u, &projectFetchNamesOptions{WorkspaceUUID: workspaceUUID}); optErr == nil {
@@ -476,13 +463,13 @@ func (s *ProjectService) Get(ctx context.Context, projectUUID string) (*ProjectR
 		}
 	}
 
-	req, reqErr := s.client.NewRequest(http.MethodGet, u, nil)
-	if reqErr != nil {
-		return nil, resp, reqErr
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	projectResp = new(ProjectResponse)
-	resp, err = s.client.Do(ctx, req, projectResp)
+	projectResp := new(ProjectResponse)
+	resp, err := s.client.Do(ctx, req, projectResp)
 	if err != nil {
 		return nil, resp, err
 	}

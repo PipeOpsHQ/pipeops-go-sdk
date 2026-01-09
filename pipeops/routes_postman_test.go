@@ -53,15 +53,6 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 			},
 		},
 		{
-			name:   "Get",
-			method: http.MethodGet,
-			path:   "/project/fetch/p1",
-			run: func(ctx context.Context, client *Client) error {
-				_, _, err := client.Projects.Get(ctx, "p1")
-				return err
-			},
-		},
-		{
 			name:   "Delete",
 			method: http.MethodDelete,
 			path:   "/project/delete/p1",
@@ -130,10 +121,6 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 						t.Fatalf("write response error: %v", writeErr)
 					}
 				case "Create":
-					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"project":{"uuid":"p1"}}}`)); writeErr != nil {
-						t.Fatalf("write response error: %v", writeErr)
-					}
-				case "Get":
 					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"project":{"uuid":"p1"}}}`)); writeErr != nil {
 						t.Fatalf("write response error: %v", writeErr)
 					}
@@ -235,21 +222,7 @@ func TestProjectService_Get_FallsBackToWorkspaceUUIDQuery_OnNotFound(t *testing.
 		calls++
 		switch calls {
 		case 1:
-			if r.Method != http.MethodGet {
-				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
-			}
-			if r.URL.Path != "/project/fetch/p1" {
-				t.Fatalf("path = %s, want %s", r.URL.Path, "/project/fetch/p1")
-			}
-			if got := r.URL.Query().Get("workspace_uuid"); got != "" {
-				t.Fatalf("workspace_uuid = %q, want empty", got)
-			}
-			w.WriteHeader(http.StatusNotFound)
-			if _, writeErr := w.Write([]byte(`{"message":"not found"}`)); writeErr != nil {
-				t.Fatalf("write response error: %v", writeErr)
-			}
-			return
-		case 2:
+			// First call is to fetch workspace
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
 			}
@@ -261,7 +234,8 @@ func TestProjectService_Get_FallsBackToWorkspaceUUIDQuery_OnNotFound(t *testing.
 				t.Fatalf("write response error: %v", writeErr)
 			}
 			return
-		case 3:
+		case 2:
+			// Second call is project fetch with workspace_uuid
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
 			}
@@ -291,8 +265,8 @@ func TestProjectService_Get_FallsBackToWorkspaceUUIDQuery_OnNotFound(t *testing.
 	if err != nil {
 		t.Fatalf("Projects.Get error: %v", err)
 	}
-	if calls != 3 {
-		t.Fatalf("calls = %d, want %d", calls, 3)
+	if calls != 2 {
+		t.Fatalf("calls = %d, want %d", calls, 2)
 	}
 }
 
