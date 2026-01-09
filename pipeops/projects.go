@@ -451,13 +451,27 @@ func (j jsonID) String() string {
 	return j.value
 }
 
+// ProjectGetOptions specifies optional parameters for fetching a project.
+type ProjectGetOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+}
+
 // Get fetches a project by UUID.
-func (s *ProjectService) Get(ctx context.Context, projectUUID string) (*ProjectResponse, *http.Response, error) {
+func (s *ProjectService) Get(ctx context.Context, projectUUID string, opts ...*ProjectGetOptions) (*ProjectResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/fetch/%s", projectUUID)
 
-	// Always try to include workspace_uuid as the API requires it
-	workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client)
-	if wsErr == nil && workspaceUUID != "" {
+	// Use provided workspace or fall back to first available
+	var workspaceUUID string
+	if len(opts) > 0 && opts[0] != nil && opts[0].WorkspaceUUID != "" {
+		workspaceUUID = opts[0].WorkspaceUUID
+	} else {
+		wsUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client)
+		if wsErr == nil {
+			workspaceUUID = wsUUID
+		}
+	}
+
+	if workspaceUUID != "" {
 		if withWorkspace, optErr := addOptions(u, &projectFetchNamesOptions{WorkspaceUUID: workspaceUUID}); optErr == nil {
 			u = withWorkspace
 		}
