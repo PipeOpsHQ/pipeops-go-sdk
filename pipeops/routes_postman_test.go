@@ -88,6 +88,26 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 				return err
 			},
 		},
+		{
+			name:   "GetLogs",
+			method: http.MethodGet,
+			path:   "/project/logs/p1",
+			run: func(ctx context.Context, client *Client) error {
+				logs, _, err := client.Projects.GetLogs(ctx, "p1", &LogsOptions{
+					WorkspaceUUID: "w1",
+					StartTime:     "s1",
+					EndTime:       "e1",
+					Limit:         10,
+				})
+				if err != nil {
+					return err
+				}
+				if len(logs.Data.Logs) != 1 {
+					return fmt.Errorf("logs len = %d, want %d", len(logs.Data.Logs), 1)
+				}
+				return nil
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -125,6 +145,25 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 						t.Fatalf("app = %q, want %q", got, "project")
 					}
 					if _, writeErr := w.Write([]byte(`{"status":"success","message":"ok","data":{"metrics":{}}}`)); writeErr != nil {
+						t.Fatalf("write response error: %v", writeErr)
+					}
+				case "GetLogs":
+					if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+						t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+					}
+					if got := r.URL.Query().Get("app"); got != "project" {
+						t.Fatalf("app = %q, want %q", got, "project")
+					}
+					if got := r.URL.Query().Get("start"); got != "s1" {
+						t.Fatalf("start = %q, want %q", got, "s1")
+					}
+					if got := r.URL.Query().Get("end"); got != "e1" {
+						t.Fatalf("end = %q, want %q", got, "e1")
+					}
+					if got := r.URL.Query().Get("limit"); got != "10" {
+						t.Fatalf("limit = %q, want %q", got, "10")
+					}
+					if _, writeErr := w.Write([]byte(`{"success":true,"message":"ok","data":[{"values":[]} ]}`)); writeErr != nil {
 						t.Fatalf("write response error: %v", writeErr)
 					}
 				default:
@@ -254,6 +293,342 @@ func TestProjectService_Get_FallsBackToWorkspaceUUIDQuery_OnNotFound(t *testing.
 	}
 	if calls != 3 {
 		t.Fatalf("calls = %d, want %d", calls, 3)
+	}
+}
+
+func TestProjectService_TailLogs_DefaultsToTailMode(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+		}
+		if r.URL.Path != "/project/logs/p1" {
+			t.Fatalf("path = %s, want %s", r.URL.Path, "/project/logs/p1")
+		}
+		if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+			t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+		}
+		if got := r.URL.Query().Get("app"); got != "project" {
+			t.Fatalf("app = %q, want %q", got, "project")
+		}
+		if got := r.URL.Query().Get("log"); got != "tail" {
+			t.Fatalf("log = %q, want %q", got, "tail")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if _, writeErr := w.Write([]byte(`{"success":true,"message":"ok","data":[{"values":[]} ]}`)); writeErr != nil {
+			t.Fatalf("write response error: %v", writeErr)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient error: %v", err)
+	}
+
+	logs, _, err := client.Projects.TailLogs(context.Background(), "p1", &LogsOptions{WorkspaceUUID: "w1"})
+	if err != nil {
+		t.Fatalf("Projects.TailLogs error: %v", err)
+	}
+	if len(logs.Data.Logs) != 1 {
+		t.Fatalf("logs len = %d, want %d", len(logs.Data.Logs), 1)
+	}
+}
+
+func TestProjectService_TailLogs_ResolvesWorkspaceUUID_WhenOptionsNil(t *testing.T) {
+	t.Parallel()
+
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		switch calls {
+		case 1:
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+			}
+			if r.URL.Path != "/workspace" {
+				t.Fatalf("path = %s, want %s", r.URL.Path, "/workspace")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(`{"data":[{"UUID":"w1"}],"message":"ok","success":true}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
+		case 2:
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+			}
+			if r.URL.Path != "/project/logs/p1" {
+				t.Fatalf("path = %s, want %s", r.URL.Path, "/project/logs/p1")
+			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+				t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+			}
+			if got := r.URL.Query().Get("app"); got != "project" {
+				t.Fatalf("app = %q, want %q", got, "project")
+			}
+			if got := r.URL.Query().Get("log"); got != "tail" {
+				t.Fatalf("log = %q, want %q", got, "tail")
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			if _, writeErr := w.Write([]byte(`{"success":true,"message":"ok","data":[{"values":[]} ]}`)); writeErr != nil {
+				t.Fatalf("write response error: %v", writeErr)
+			}
+		default:
+			t.Fatalf("unexpected call %d (%s %s?%s)", calls, r.Method, r.URL.Path, r.URL.RawQuery)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient error: %v", err)
+	}
+
+	logs, _, err := client.Projects.TailLogs(context.Background(), "p1", nil)
+	if err != nil {
+		t.Fatalf("Projects.TailLogs error: %v", err)
+	}
+	if len(logs.Data.Logs) != 1 {
+		t.Fatalf("logs len = %d, want %d", len(logs.Data.Logs), 1)
+	}
+	if calls != 2 {
+		t.Fatalf("calls = %d, want %d", calls, 2)
+	}
+}
+
+func TestProjectService_SettingsRoutes_IncludeWorkspaceUUID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		run       func(ctx context.Context, client *Client) error
+		method    string
+		path      string
+		checkBody func(t *testing.T, body []byte)
+		response  func(t *testing.T, w http.ResponseWriter)
+	}{
+		{
+			name:   "UpdateEnvVariables",
+			method: http.MethodPost,
+			path:   "/project/settings/env/p1",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.UpdateEnvVariables(ctx, "p1", &EnvVariablesRequest{})
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"env_variables":[]}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "GetEnvVariables",
+			method: http.MethodGet,
+			path:   "/project/settings/env/p1",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.GetEnvVariables(ctx, "p1")
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"env_variables":[]}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "CreateNetworkPolicy",
+			method: http.MethodPost,
+			path:   "/project/settings/p1/network-policy",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.CreateNetworkPolicy(ctx, "p1", &NetworkPolicyRequest{Name: "np"})
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"policy":{}}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "UpdateNetworkPolicy",
+			method: http.MethodPut,
+			path:   "/project/settings/p1/network-policy/np1",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.UpdateNetworkPolicy(ctx, "p1", "np1", &NetworkPolicyRequest{Name: "np"})
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"policy":{}}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "ListNetworkPolicies",
+			method: http.MethodGet,
+			path:   "/project/settings/p1/network-policy",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.ListNetworkPolicies(ctx, "p1")
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"policies":[]}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "UpdateNetworkingPort",
+			method: http.MethodPut,
+			path:   "/project/settings/network/p1",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.UpdateNetworkingPort(ctx, "p1", &NetworkSettingsRequest{Port: 8080})
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"settings":{}}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "GetNetworkSettings",
+			method: http.MethodGet,
+			path:   "/project/settings/network/p1",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.GetNetworkSettings(ctx, "p1")
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"settings":{}}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "GenerateDomainFromNetworkPort",
+			method: http.MethodPost,
+			path:   "/project/settings/network-name/p1",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.GenerateDomainFromNetworkPort(ctx, "p1")
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"domain":"example.com"}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "UpdateDomain",
+			method: http.MethodPost,
+			path:   "/project/settings/name/p1",
+			run: func(ctx context.Context, client *Client) error {
+				_, _, err := client.Projects.UpdateDomain(ctx, "p1", &DomainRequest{Domain: "example.com"})
+				return err
+			},
+			checkBody: func(t *testing.T, body []byte) {
+				var payload map[string]any
+				if err := json.Unmarshal(body, &payload); err != nil {
+					t.Fatalf("unmarshal body error: %v", err)
+				}
+				if got := payload["customDomainName"]; got != "example.com" {
+					t.Fatalf("customDomainName = %#v, want %q", got, "example.com")
+				}
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				if _, err := w.Write([]byte(`{"success":true,"message":"ok","data":{}}`)); err != nil {
+					t.Fatalf("write response error: %v", err)
+				}
+			},
+		},
+		{
+			name:   "DeleteCustomDomain",
+			method: http.MethodPatch,
+			path:   "/project/p1/custom-domain",
+			run: func(ctx context.Context, client *Client) error {
+				_, err := client.Projects.DeleteCustomDomain(ctx, "p1")
+				return err
+			},
+			response: func(t *testing.T, w http.ResponseWriter) {
+				w.WriteHeader(http.StatusNoContent)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				switch calls {
+				case 1:
+					if r.Method != http.MethodGet {
+						t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+					}
+					if r.URL.Path != "/workspace" {
+						t.Fatalf("path = %s, want %s", r.URL.Path, "/workspace")
+					}
+					w.Header().Set("Content-Type", "application/json")
+					if _, err := w.Write([]byte(`{"data":[{"UUID":"w1"}],"message":"ok","success":true}`)); err != nil {
+						t.Fatalf("write response error: %v", err)
+					}
+				case 2:
+					if r.Method != tt.method {
+						t.Fatalf("method = %s, want %s", r.Method, tt.method)
+					}
+					if r.URL.Path != tt.path {
+						t.Fatalf("path = %s, want %s", r.URL.Path, tt.path)
+					}
+					if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+						t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+					}
+
+					if tt.checkBody != nil {
+						bodyBytes, err := io.ReadAll(r.Body)
+						if err != nil {
+							t.Fatalf("read body error: %v", err)
+						}
+						tt.checkBody(t, bodyBytes)
+					}
+
+					if tt.response == nil {
+						t.Fatalf("test response handler missing")
+					}
+					tt.response(t, w)
+				default:
+					t.Fatalf("unexpected call %d (%s %s?%s)", calls, r.Method, r.URL.Path, r.URL.RawQuery)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			client, err := NewClient(server.URL)
+			if err != nil {
+				t.Fatalf("NewClient error: %v", err)
+			}
+
+			if err := tt.run(context.Background(), client); err != nil {
+				t.Fatalf("call error: %v", err)
+			}
+			if calls != 2 {
+				t.Fatalf("calls = %d, want %d", calls, 2)
+			}
+		})
 	}
 }
 

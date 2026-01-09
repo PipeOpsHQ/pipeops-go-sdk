@@ -222,6 +222,32 @@ func TestServerService_Delete_FallsBackOn404(t *testing.T) {
 				t.Fatalf("write response error: %v", err)
 			}
 		case 2:
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+			}
+			if r.URL.Path != "/workspace" {
+				t.Fatalf("path = %s, want %s", r.URL.Path, "/workspace")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(`{"data":[{"UUID":"w1"}],"message":"ok","success":true}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
+		case 3:
+			if r.Method != http.MethodDelete {
+				t.Fatalf("method = %s, want %s", r.Method, http.MethodDelete)
+			}
+			if r.URL.Path != "/cluster/c1" {
+				t.Fatalf("path = %s, want %s", r.URL.Path, "/cluster/c1")
+			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+				t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			if _, err := w.Write([]byte(`{"message":"not found"}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
+		case 4:
 			if r.Method != http.MethodDelete {
 				t.Fatalf("method = %s, want %s", r.Method, http.MethodDelete)
 			}

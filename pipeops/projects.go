@@ -1,6 +1,7 @@
 package pipeops
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -550,19 +551,78 @@ func (s *ProjectService) Delete(ctx context.Context, projectUUID string) (*http.
 
 // LogsOptions specifies options for retrieving project logs.
 type LogsOptions struct {
+	// WorkspaceUUID scopes the request to a workspace (required by the API).
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+	WorkspaceID   string `url:"workspace_id,omitempty"`
+
+	// App is required by the API; defaults to "project".
+	App string `url:"app,omitempty"`
+
+	// Start and End match the API query parameters.
+	Start string `url:"start,omitempty"`
+	End   string `url:"end,omitempty"`
+
+	// StartTime and EndTime are kept for backward compatibility and are mapped
+	// to Start/End when Start/End are empty.
 	StartTime string `url:"start_time,omitempty"`
 	EndTime   string `url:"end_time,omitempty"`
-	Limit     int    `url:"limit,omitempty"`
-	Search    string `url:"search,omitempty"`
+
+	Limit  int    `url:"limit,omitempty"`
+	Search string `url:"search,omitempty"`
+
+	// Log enables streaming modes like tail ("tail") with optional Delay.
+	Log   string `url:"log,omitempty"`
+	Delay int    `url:"delay,omitempty"`
 }
 
 // LogsResponse represents project logs response.
 type LogsResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Logs []map[string]interface{} `json:"logs"`
-	} `json:"data"`
+	Success bool     `json:"success,omitempty"`
+	Status  string   `json:"status,omitempty"`
+	Message string   `json:"message"`
+	Data    LogsData `json:"data,omitempty"`
+}
+
+// LogsData supports both legacy shapes (`data.logs`) and the Postman/API shape (`data: []`).
+type LogsData struct {
+	Logs []map[string]interface{} `json:"logs,omitempty"`
+}
+
+func (d *LogsData) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || string(trimmed) == "null" {
+		return nil
+	}
+
+	switch trimmed[0] {
+	case '[':
+		var logs []map[string]interface{}
+		if err := json.Unmarshal(trimmed, &logs); err != nil {
+			return err
+		}
+		d.Logs = logs
+		return nil
+	case '{':
+		var wrapped struct {
+			Logs []map[string]interface{} `json:"logs,omitempty"`
+		}
+		if err := json.Unmarshal(trimmed, &wrapped); err == nil && wrapped.Logs != nil {
+			d.Logs = wrapped.Logs
+			return nil
+		}
+
+		var single map[string]interface{}
+		if err := json.Unmarshal(trimmed, &single); err != nil {
+			return err
+		}
+		if len(single) == 0 {
+			return nil
+		}
+		d.Logs = []map[string]interface{}{single}
+		return nil
+	default:
+		return fmt.Errorf("unexpected logs data: %s", string(trimmed))
+	}
 }
 
 // GetLogs retrieves logs for a project.
@@ -573,6 +633,12 @@ func (s *ProjectService) GetLogs(ctx context.Context, projectUUID string, opts *
 // TailLogs tails logs for a project (streams recent logs).
 // Deprecated: Use GetLogs with appropriate LogsOptions instead.
 func (s *ProjectService) TailLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
+	if opts == nil {
+		opts = &LogsOptions{}
+	}
+	if opts.Log == "" {
+		opts.Log = "tail"
+	}
 	return s.fetchLogs(ctx, projectUUID, opts)
 }
 
@@ -582,15 +648,50 @@ func (s *ProjectService) SearchLogs(ctx context.Context, projectUUID string, opt
 	return s.fetchLogs(ctx, projectUUID, opts)
 }
 
+type logsQueryOptions struct {
+	App           string `url:"app"`
+	WorkspaceUUID string `url:"workspace_uuid"`
+	Start         string `url:"start,omitempty"`
+	End           string `url:"end,omitempty"`
+	Limit         int    `url:"limit,omitempty"`
+	Search        string `url:"search,omitempty"`
+	Log           string `url:"log,omitempty"`
+	Delay         int    `url:"delay,omitempty"`
+}
+
+type workspaceUUIDOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+}
+
 // fetchLogs is the internal implementation for retrieving project logs.
 func (s *ProjectService) fetchLogs(ctx context.Context, projectUUID string, opts *LogsOptions) (*LogsResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/logs/%s", projectUUID)
+
+	query := &logsQueryOptions{
+		App: "project",
+	}
 	if opts != nil {
-		var err error
-		u, err = addOptions(u, opts)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to add options: %w", err)
+		query.App = coalesceNonEmpty(opts.App, query.App)
+		query.WorkspaceUUID = coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID)
+		query.Start = coalesceNonEmpty(opts.Start, opts.StartTime)
+		query.End = coalesceNonEmpty(opts.End, opts.EndTime)
+		query.Limit = opts.Limit
+		query.Search = opts.Search
+		query.Log = opts.Log
+		query.Delay = opts.Delay
+	}
+	if query.WorkspaceUUID == "" {
+		workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client)
+		if wsErr != nil {
+			return nil, nil, wsErr
 		}
+		query.WorkspaceUUID = workspaceUUID
+	}
+
+	var err error
+	u, err = addOptions(u, query)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to add options: %w", err)
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -644,6 +745,10 @@ type DomainRequest struct {
 	Domain string `json:"domain"`
 }
 
+type projectDomainNamePayload struct {
+	CustomDomainName string `json:"customDomainName"`
+}
+
 // DomainResponse represents domain response.
 type DomainResponse struct {
 	Status  string `json:"status"`
@@ -655,15 +760,56 @@ type DomainResponse struct {
 
 // UpdateDomain updates the domain for a project.
 func (s *ProjectService) UpdateDomain(ctx context.Context, projectUUID string, req *DomainRequest) (*DomainResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/%s/domain", projectUUID)
+	u := fmt.Sprintf("project/settings/name/%s", projectUUID)
 
-	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
+	payload := &projectDomainNamePayload{}
+	if req != nil {
+		payload.CustomDomainName = req.Domain
+	}
+
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		httpReq, err := s.client.NewRequest(http.MethodPost, withWorkspace, payload)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		domainResp := new(DomainResponse)
+		resp, err := s.client.Do(ctx, httpReq, domainResp)
+		if err == nil {
+			return domainResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, payload)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	domainResp := new(DomainResponse)
 	resp, err := s.client.Do(ctx, httpReq, domainResp)
+	if err == nil {
+		return domainResp, resp, nil
+	}
+	if !isNotFound(err) {
+		return nil, resp, err
+	}
+
+	u = fmt.Sprintf("project/%s/domain", projectUUID)
+	httpReq, err = s.client.NewRequest(http.MethodPut, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	domainResp = new(DomainResponse)
+	resp, err = s.client.Do(ctx, httpReq, domainResp)
 	if err != nil {
 		return nil, resp, err
 	}
@@ -689,6 +835,27 @@ type EnvVariablesResponse struct {
 func (s *ProjectService) UpdateEnvVariables(ctx context.Context, projectUUID string, req *EnvVariablesRequest) (*EnvVariablesResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/env/%s", projectUUID)
 
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		httpReq, err := s.client.NewRequest(http.MethodPost, withWorkspace, req)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		envResp := new(EnvVariablesResponse)
+		resp, err := s.client.Do(ctx, httpReq, envResp)
+		if err == nil {
+			return envResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
 		return nil, nil, err
@@ -706,6 +873,27 @@ func (s *ProjectService) UpdateEnvVariables(ctx context.Context, projectUUID str
 // GetEnvVariables retrieves environment variables for a project.
 func (s *ProjectService) GetEnvVariables(ctx context.Context, projectUUID string) (*EnvVariablesResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/env/%s", projectUUID)
+
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		req, err := s.client.NewRequest(http.MethodGet, withWorkspace, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		envResp := new(EnvVariablesResponse)
+		resp, err := s.client.Do(ctx, req, envResp)
+		if err == nil {
+			return envResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -762,7 +950,7 @@ func (s *ProjectService) Stop(ctx context.Context, projectUUID string) (*http.Re
 
 // MetricsRequest represents a metrics request.
 type MetricsRequest struct {
-	App          string `json:"app,omitempty" url:"app,omitempty"`
+	App           string `json:"app,omitempty" url:"app,omitempty"`
 	WorkspaceUUID string `json:"workspace_uuid,omitempty" url:"workspace_uuid,omitempty"`
 	ProjectUUID   string `json:"project_uuid,omitempty" url:"project_uuid,omitempty"`
 	StartTime     string `json:"start_time,omitempty" url:"start_time,omitempty"`
@@ -1154,6 +1342,27 @@ type NetworkPoliciesResponse struct {
 func (s *ProjectService) CreateNetworkPolicy(ctx context.Context, projectUUID string, req *NetworkPolicyRequest) (*NetworkPolicyResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/%s/network-policy", projectUUID)
 
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		httpReq, err := s.client.NewRequest(http.MethodPost, withWorkspace, req)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		policyResp := new(NetworkPolicyResponse)
+		resp, err := s.client.Do(ctx, httpReq, policyResp)
+		if err == nil {
+			return policyResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {
 		return nil, nil, err
@@ -1172,6 +1381,27 @@ func (s *ProjectService) CreateNetworkPolicy(ctx context.Context, projectUUID st
 func (s *ProjectService) UpdateNetworkPolicy(ctx context.Context, projectUUID, policyUUID string, req *NetworkPolicyRequest) (*NetworkPolicyResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/%s/network-policy/%s", projectUUID, policyUUID)
 
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		httpReq, err := s.client.NewRequest(http.MethodPut, withWorkspace, req)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		policyResp := new(NetworkPolicyResponse)
+		resp, err := s.client.Do(ctx, httpReq, policyResp)
+		if err == nil {
+			return policyResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
 	if err != nil {
 		return nil, nil, err
@@ -1189,6 +1419,27 @@ func (s *ProjectService) UpdateNetworkPolicy(ctx context.Context, projectUUID, p
 // ListNetworkPolicies lists network policies for a project.
 func (s *ProjectService) ListNetworkPolicies(ctx context.Context, projectUUID string) (*NetworkPoliciesResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/%s/network-policy", projectUUID)
+
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		req, err := s.client.NewRequest(http.MethodGet, withWorkspace, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		policiesResp := new(NetworkPoliciesResponse)
+		resp, err := s.client.Do(ctx, req, policiesResp)
+		if err == nil {
+			return policiesResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -1224,6 +1475,27 @@ type NetworkSettingsResponse struct {
 func (s *ProjectService) UpdateNetworkingPort(ctx context.Context, projectUUID string, req *NetworkSettingsRequest) (*NetworkSettingsResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/network/%s", projectUUID)
 
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		httpReq, err := s.client.NewRequest(http.MethodPut, withWorkspace, req)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		settingsResp := new(NetworkSettingsResponse)
+		resp, err := s.client.Do(ctx, httpReq, settingsResp)
+		if err == nil {
+			return settingsResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
 	if err != nil {
 		return nil, nil, err
@@ -1242,6 +1514,27 @@ func (s *ProjectService) UpdateNetworkingPort(ctx context.Context, projectUUID s
 func (s *ProjectService) GenerateDomainFromNetworkPort(ctx context.Context, projectUUID string) (*DomainResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/network-name/%s", projectUUID)
 
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		req, err := s.client.NewRequest(http.MethodPost, withWorkspace, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		domainResp := new(DomainResponse)
+		resp, err := s.client.Do(ctx, req, domainResp)
+		if err == nil {
+			return domainResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
+
 	req, err := s.client.NewRequest(http.MethodPost, u, nil)
 	if err != nil {
 		return nil, nil, err
@@ -1259,6 +1552,27 @@ func (s *ProjectService) GenerateDomainFromNetworkPort(ctx context.Context, proj
 // GetNetworkSettings retrieves network settings for a project.
 func (s *ProjectService) GetNetworkSettings(ctx context.Context, projectUUID string) (*NetworkSettingsResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/network/%s", projectUUID)
+
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		req, err := s.client.NewRequest(http.MethodGet, withWorkspace, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		settingsResp := new(NetworkSettingsResponse)
+		resp, err := s.client.Do(ctx, req, settingsResp)
+		if err == nil {
+			return settingsResp, resp, nil
+		}
+		if !isNotFound(err) {
+			return nil, resp, err
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -1523,20 +1837,33 @@ func (s *ProjectService) CheckDomainSSL(ctx context.Context, req *CheckDomainSSL
 
 // SetProjectDomainName sets the project domain name.
 func (s *ProjectService) SetProjectDomainName(ctx context.Context, projectUUID string, req *DomainRequest) (*http.Response, error) {
-	u := fmt.Sprintf("project/settings/name/%s", projectUUID)
-
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.client.Do(ctx, httpReq, nil)
+	_, resp, err := s.UpdateDomain(ctx, projectUUID, req)
 	return resp, err
 }
 
 // DeleteCustomDomain deletes a custom domain from a project.
 func (s *ProjectService) DeleteCustomDomain(ctx context.Context, projectUUID string) (*http.Response, error) {
 	u := fmt.Sprintf("project/%s/custom-domain", projectUUID)
+
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, err
+		}
+
+		req, err := s.client.NewRequest(http.MethodPatch, withWorkspace, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := s.client.Do(ctx, req, nil)
+		if err == nil {
+			return resp, nil
+		}
+		if !isNotFound(err) {
+			return resp, err
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodPatch, u, nil)
 	if err != nil {

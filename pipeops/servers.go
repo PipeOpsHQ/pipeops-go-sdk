@@ -181,6 +181,19 @@ func (s *ServerService) Delete(ctx context.Context, clusterUUID, serverUUID stri
 		return resp, err
 	}
 
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil && workspaceUUID != "" {
+		withWorkspace, addErr := addOptions(fmt.Sprintf("cluster/%s", clusterUUID), &clusterWorkspaceOptions{WorkspaceUUID: workspaceUUID})
+		if addErr == nil {
+			req, reqErr := s.client.NewRequest(http.MethodDelete, withWorkspace, nil)
+			if reqErr == nil {
+				resp, err = s.client.Do(ctx, req, nil)
+				if err == nil || !isNotFound(err) {
+					return resp, err
+				}
+			}
+		}
+	}
+
 	if serverUUID == "" {
 		return resp, err
 	}
