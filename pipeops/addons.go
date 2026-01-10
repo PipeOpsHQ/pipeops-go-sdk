@@ -93,25 +93,26 @@ func (s *AddOnService) Get(ctx context.Context, addonUUID string) (*AddOnRespons
 
 // AddOnDeployment represents a deployed add-on instance.
 type AddOnDeployment struct {
-	ID        string                 `json:"id,omitempty"`
-	UUID      string                 `json:"uuid,omitempty"`
-	AddOnID   string                 `json:"addon_id,omitempty"`
-	AddOnName string                 `json:"addon_name,omitempty"`
-	ProjectID string                 `json:"project_id,omitempty"`
-	ServerID  string                 `json:"server_id,omitempty"`
-	Status    string                 `json:"status,omitempty"`
-	Config    map[string]interface{} `json:"config,omitempty"`
-	CreatedAt *Timestamp             `json:"created_at,omitempty"`
-	UpdatedAt *Timestamp             `json:"updated_at,omitempty"`
+	UID                   string     `json:"UID,omitempty"`
+	Name                  string     `json:"Name,omitempty"`
+	DeploymentName        string     `json:"DeploymentName,omitempty"`
+	DeploymentURL         string     `json:"DeploymentURL,omitempty"`
+	Category              string     `json:"Category,omitempty"`
+	Status                string     `json:"Status,omitempty"`
+	StatusMessage         string     `json:"StatusMessage,omitempty"`
+	Environment           string     `json:"Environment,omitempty"`
+	ImageURL              string     `json:"ImageURL,omitempty"`
+	Version               string     `json:"Version,omitempty"`
+	CurrentVersion        string     `json:"current_version,omitempty"`
+	UpgradableVersion     string     `json:"upgradable_version,omitempty"`
+	UpgradeAvailable      bool       `json:"upgrade_available,omitempty"`
+	CreatedAt             *Timestamp `json:"CreatedAt,omitempty"`
+	UpdatedAt             *Timestamp `json:"UpdatedAt,omitempty"`
 }
 
 // AddOnDeploymentsResponse represents a list of add-on deployments response.
 type AddOnDeploymentsResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Deployments []AddOnDeployment `json:"deployments"`
-	} `json:"data"`
+	Data []AddOnDeployment `json:"data"`
 }
 
 // AddOnDeploymentResponse represents a single add-on deployment response.
@@ -152,32 +153,18 @@ func (s *AddOnService) Deploy(ctx context.Context, req *DeployAddOnRequest) (*Ad
 
 // ListDeploymentsOptions specifies optional parameters for listing deployments.
 type ListDeploymentsOptions struct {
-	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
-	ProjectUUID   string `url:"project_uuid,omitempty"`
+	WorkspaceUUID string `url:"workspace,omitempty"`
 }
 
-// ListDeployments lists all add-on deployments.
+// ListDeployments lists all add-on deployments for a workspace.
 func (s *AddOnService) ListDeployments(ctx context.Context, opts ...*ListDeploymentsOptions) (*AddOnDeploymentsResponse, *http.Response, error) {
-	u := "addons/deployments"
+	u := "addons/deployments/overview"
 
 	// Add query parameters if options provided
 	if len(opts) > 0 && opts[0] != nil {
 		opt := opts[0]
-		params := make([]string, 0)
 		if opt.WorkspaceUUID != "" {
-			params = append(params, "workspace_uuid="+opt.WorkspaceUUID)
-		}
-		if opt.ProjectUUID != "" {
-			params = append(params, "project_uuid="+opt.ProjectUUID)
-		}
-		if len(params) > 0 {
-			u = u + "?"
-			for i, p := range params {
-				if i > 0 {
-					u += "&"
-				}
-				u += p
-			}
+			u = u + "?workspace=" + opt.WorkspaceUUID
 		}
 	}
 
