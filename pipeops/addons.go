@@ -41,9 +41,7 @@ type AddOnsResponse struct {
 type AddOnResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
-	Data    struct {
-		AddOn AddOn `json:"addon"`
-	} `json:"data"`
+	Data    AddOn  `json:"data"`
 }
 
 // List lists all available add-ons.
