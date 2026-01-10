@@ -125,11 +125,10 @@ type AddOnDeploymentResponse struct {
 
 // DeployAddOnRequest represents a request to deploy an add-on.
 type DeployAddOnRequest struct {
-	AddOnID       string                 `json:"id,omitempty"`
-	AddOnUUID     string                 `json:"addon_uuid,omitempty"`
+	AddOnID       string                 `json:"addon_id,omitempty"`
 	ProjectID     string                 `json:"project_id,omitempty"`
-	ServerID      string                 `json:"Server,omitempty"`
-	WorkspaceUUID string                 `json:"Workspace,omitempty"`
+	ServerID      string                 `json:"server_id,omitempty"`
+	WorkspaceUUID string                 `json:"workspace_id,omitempty"`
 	Config        map[string]interface{} `json:"config,omitempty"`
 }
 
