@@ -47,8 +47,19 @@ type AddOnResponse struct {
 }
 
 // List lists all available add-ons.
-func (s *AddOnService) List(ctx context.Context) (*AddOnsResponse, *http.Response, error) {
+// ListAddOnsOptions specifies optional parameters for listing addons.
+type ListAddOnsOptions struct {
+	Limit int `url:"limit,omitempty"`
+}
+
+// List lists all available add-ons.
+func (s *AddOnService) List(ctx context.Context, opts ...*ListAddOnsOptions) (*AddOnsResponse, *http.Response, error) {
 	u := "addons"
+
+	// Add query parameters if options provided
+	if len(opts) > 0 && opts[0] != nil && opts[0].Limit > 0 {
+		u = fmt.Sprintf("%s?limit=%d", u, opts[0].Limit)
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
