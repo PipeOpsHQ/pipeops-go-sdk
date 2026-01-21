@@ -48,4 +48,3 @@ func firstWorkspaceUUID(ctx context.Context, client *Client) (string, *http.Resp
 	}
 	return workspaces[0].UUID, resp, nil
 }
-

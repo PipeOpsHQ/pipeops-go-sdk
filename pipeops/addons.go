@@ -93,21 +93,21 @@ func (s *AddOnService) Get(ctx context.Context, addonUUID string) (*AddOnRespons
 
 // AddOnDeployment represents a deployed add-on instance.
 type AddOnDeployment struct {
-	UID                   string     `json:"UID,omitempty"`
-	Name                  string     `json:"Name,omitempty"`
-	DeploymentName        string     `json:"DeploymentName,omitempty"`
-	DeploymentURL         string     `json:"DeploymentURL,omitempty"`
-	Category              string     `json:"Category,omitempty"`
-	Status                string     `json:"Status,omitempty"`
-	StatusMessage         string     `json:"StatusMessage,omitempty"`
-	Environment           string     `json:"Environment,omitempty"`
-	ImageURL              string     `json:"ImageURL,omitempty"`
-	Version               string     `json:"Version,omitempty"`
-	CurrentVersion        string     `json:"current_version,omitempty"`
-	UpgradableVersion     string     `json:"upgradable_version,omitempty"`
-	UpgradeAvailable      bool       `json:"upgrade_available,omitempty"`
-	CreatedAt             *Timestamp `json:"CreatedAt,omitempty"`
-	UpdatedAt             *Timestamp `json:"UpdatedAt,omitempty"`
+	UID               string     `json:"UID,omitempty"`
+	Name              string     `json:"Name,omitempty"`
+	DeploymentName    string     `json:"DeploymentName,omitempty"`
+	DeploymentURL     string     `json:"DeploymentURL,omitempty"`
+	Category          string     `json:"Category,omitempty"`
+	Status            string     `json:"Status,omitempty"`
+	StatusMessage     string     `json:"StatusMessage,omitempty"`
+	Environment       string     `json:"Environment,omitempty"`
+	ImageURL          string     `json:"ImageURL,omitempty"`
+	Version           string     `json:"Version,omitempty"`
+	CurrentVersion    string     `json:"current_version,omitempty"`
+	UpgradableVersion string     `json:"upgradable_version,omitempty"`
+	UpgradeAvailable  bool       `json:"upgrade_available,omitempty"`
+	CreatedAt         *Timestamp `json:"CreatedAt,omitempty"`
+	UpdatedAt         *Timestamp `json:"UpdatedAt,omitempty"`
 }
 
 // AddOnDeploymentsResponse represents a list of add-on deployments response.
