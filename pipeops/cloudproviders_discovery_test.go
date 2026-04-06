@@ -19,12 +19,16 @@ func TestCloudProviderService_DiscoveryEndpoints(t *testing.T) {
 			if r.URL.Path != "/app/digital_ocean/regions" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/app/digital_ocean/regions")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"digital_ocean":[{"title":"NYC1","value":"nyc1","code":"us"}]}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"digital_ocean":[{"title":"NYC1","value":"nyc1","code":"us"}]}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 2:
 			if r.URL.Path != "/app/aws/instance-categories" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/app/aws/instance-categories")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"aws":{"instanceCategories":["General purpose"]}}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"aws":{"instanceCategories":["General purpose"]}}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 3:
 			if r.URL.Path != "/app/digital_ocean/instance-types" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/app/digital_ocean/instance-types")
@@ -35,12 +39,16 @@ func TestCloudProviderService_DiscoveryEndpoints(t *testing.T) {
 			if got := r.URL.Query().Get("region"); got != "nyc1" {
 				t.Fatalf("region = %q, want %q", got, "nyc1")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"digital_ocean":{"Basic":[{"name":"s-1vcpu-1gb","vcpu":1}]}}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"digital_ocean":{"Basic":[{"name":"s-1vcpu-1gb","vcpu":1}]}}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 4:
 			if r.URL.Path != "/app/gcp/server-templates" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/app/gcp/server-templates")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"development":[{"uuid":"tpl1","package":"e2-small"}]}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"development":[{"uuid":"tpl1","package":"e2-small"}]}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		default:
 			t.Fatalf("unexpected call %d", step)
 		}

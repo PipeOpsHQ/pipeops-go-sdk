@@ -38,7 +38,9 @@ func TestExternalRegistryService_Create_List_Get_Delete(t *testing.T) {
 			if got := body["name"]; got != "Docker Hub" {
 				t.Fatalf("name = %#v, want %q", got, "Docker Hub")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"id":1,"uid":"reg1","name":"Docker Hub","type":"dockerhub"}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"id":1,"uid":"reg1","name":"Docker Hub","type":"dockerhub"}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 2:
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
@@ -52,7 +54,9 @@ func TestExternalRegistryService_Create_List_Get_Delete(t *testing.T) {
 			if got := r.URL.Query().Get("page"); got != "2" {
 				t.Fatalf("page = %q, want %q", got, "2")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"registries":[{"uid":"reg1","name":"Docker Hub"}],"total":1,"page":2,"page_size":10}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"registries":[{"uid":"reg1","name":"Docker Hub"}],"total":1,"page":2,"page_size":10}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 3:
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
@@ -60,7 +64,9 @@ func TestExternalRegistryService_Create_List_Get_Delete(t *testing.T) {
 			if r.URL.Path != "/api/v1/external-registry/reg1" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/api/v1/external-registry/reg1")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"uid":"reg1","name":"Docker Hub"}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"uid":"reg1","name":"Docker Hub"}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 4:
 			if r.Method != http.MethodDelete {
 				t.Fatalf("method = %s, want %s", r.Method, http.MethodDelete)
@@ -129,12 +135,16 @@ func TestExternalRegistryService_BrowseDockerHub(t *testing.T) {
 			if got := r.URL.Query().Get("page_size"); got != "20" {
 				t.Fatalf("page_size = %q, want %q", got, "20")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"repositories":[{"name":"nginx"}]}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"repositories":[{"name":"nginx"}]}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 2:
 			if r.URL.Path != "/api/v1/external-registry/reg1/dockerhub/library/nginx/tags" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/api/v1/external-registry/reg1/dockerhub/library/nginx/tags")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"tags":[{"name":"latest"}]}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"tags":[{"name":"latest"}]}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 3:
 			if r.URL.Path != "/api/v1/external-registry/dockerhub/search" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/api/v1/external-registry/dockerhub/search")
@@ -142,12 +152,16 @@ func TestExternalRegistryService_BrowseDockerHub(t *testing.T) {
 			if got := r.URL.Query().Get("q"); got != "nginx" {
 				t.Fatalf("q = %q, want %q", got, "nginx")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"results":[{"name":"nginx"}]}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"results":[{"name":"nginx"}]}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		case 4:
 			if r.URL.Path != "/api/v1/external-registry/dockerhub/library/nginx/tags" {
 				t.Fatalf("path = %s, want %s", r.URL.Path, "/api/v1/external-registry/dockerhub/library/nginx/tags")
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"tags":[{"name":"latest"}]}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"tags":[{"name":"latest"}]}}`)); err != nil {
+				t.Fatalf("write response error: %v", err)
+			}
 		default:
 			t.Fatalf("unexpected call %d", step)
 		}

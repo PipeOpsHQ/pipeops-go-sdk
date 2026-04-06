@@ -33,7 +33,9 @@ func TestProjectService_DeployFromImage_UsesBYOIRoute(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"message":"BYOI deployment initiated successfully","data":{"project_uuid":"p1","project_name":"nginx-demo","container_image":"docker.io/library/nginx:latest","image_tag":"latest","status":"pending","domain":"https://nginx-demo.example.com","build_sha":"sha123"}}`))
+		if _, err := w.Write([]byte(`{"success":true,"message":"BYOI deployment initiated successfully","data":{"project_uuid":"p1","project_name":"nginx-demo","container_image":"docker.io/library/nginx:latest","image_tag":"latest","status":"pending","domain":"https://nginx-demo.example.com","build_sha":"sha123"}}`)); err != nil {
+			t.Fatalf("write response error: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
