@@ -1,19 +1,34 @@
 # Billing Service
 
-The Billing Service manages subscriptions, payments, and invoices.
+The Billing Service manages PipeOps balance, subscriptions, plans, portal access, and workspace payment cards.
 
 ## Overview
 
 ```go
-// Access the billing service
 billingService := client.Billing
 ```
 
-## Methods
+> Note: the current controller-backed billing reads verified against the PipeOps controller collection are `GetBillingInfo`, `GetBalance`, `GetCurrentSubscription`, `GetPortalURL`, `GetPlans`, `ListWorkspaceCards`, and `GetActiveCard`. The legacy `GetUsage` method still targets `/billing/usage`, which is not exposed by the current controller.
+
+## Key Methods
+
+### Get Billing Info
+
+Retrieve current balance plus the active subscription snapshot in one call:
+
+```go
+info, _, err := client.Billing.GetBillingInfo(ctx)
+if err != nil {
+    log.Fatalf("Failed to get billing info: %v", err)
+}
+
+fmt.Printf("Balance: %.2f %s\n", info.Data.Balance.Balance, info.Data.Balance.Currency)
+if info.Data.CurrentSubscription != nil {
+    fmt.Printf("Plan: %s (%s)\n", info.Data.CurrentSubscription.PlanName, info.Data.CurrentSubscription.PlanTier)
+}
+```
 
 ### Get Balance
-
-Get current account balance:
 
 ```go
 balance, _, err := client.Billing.GetBalance(ctx)
@@ -21,172 +36,86 @@ if err != nil {
     log.Fatalf("Failed to get balance: %v", err)
 }
 
-fmt.Printf("Balance: $%.2f\n", balance.Data.Balance)
-fmt.Printf("Credit: $%.2f\n", balance.Data.Credit)
+fmt.Printf("Balance: %.2f %s\n", balance.Data.Balance, balance.Data.Currency)
 ```
 
-### List Invoices
-
-List all invoices:
+### Get Current Subscription
 
 ```go
-invoices, _, err := client.Billing.ListInvoices(ctx, &pipeops.InvoiceListOptions{
-    Page:  1,
-    Limit: 20,
-})
+subscription, _, err := client.Billing.GetCurrentSubscription(ctx)
 if err != nil {
-    log.Fatalf("Failed to list invoices: %v", err)
+    log.Fatalf("Failed to get current subscription: %v", err)
 }
 
-for _, invoice := range invoices.Data.Invoices {
-    fmt.Printf("Invoice: %s - $%.2f - %s\n", 
-        invoice.ID, invoice.Amount, invoice.Status)
+fmt.Printf("Plan: %s (%s)\n", subscription.Data.Subscription.PlanName, subscription.Data.Subscription.PlanTier)
+fmt.Printf("Status: %s\n", subscription.Data.Subscription.Status)
+```
+
+### Get Plans
+
+```go
+plans, _, err := client.Billing.GetPlans(ctx)
+if err != nil {
+    log.Fatalf("Failed to get plans: %v", err)
+}
+
+for _, plan := range plans.Data.Plans {
+    fmt.Printf("%s: %.2f %s (%s)\n", plan.Name, plan.Price, plan.Currency, plan.Period)
 }
 ```
 
-### Get Invoice
-
-Get specific invoice:
+### Get Billing Portal URL
 
 ```go
-invoice, _, err := client.Billing.GetInvoice(ctx, "invoice-uuid")
+portal, _, err := client.Billing.GetPortalURL(ctx)
 if err != nil {
-    log.Fatalf("Failed to get invoice: %v", err)
+    log.Fatalf("Failed to get portal URL: %v", err)
 }
 
-fmt.Printf("Amount: $%.2f\n", invoice.Data.Invoice.Amount)
+fmt.Println(portal.Data.PortalURL)
 ```
 
-### Add Payment Card
-
-Add a payment method:
+### List Workspace Cards
 
 ```go
-card, _, err := client.Billing.AddCard(ctx, &pipeops.AddCardRequest{
-    Token: "stripe-card-token",
-})
+cards, _, err := client.Billing.ListWorkspaceCards(ctx)
 if err != nil {
-    log.Fatalf("Failed to add card: %v", err)
+    log.Fatalf("Failed to list workspace cards: %v", err)
 }
 
-fmt.Printf("Card added: ****%s\n", card.Data.Card.Last4)
+for _, card := range cards.Data.Cards {
+    fmt.Printf("%s ending in %s\n", card.Brand, card.Last4)
+}
 ```
 
 ### Get Active Card
 
-Get the active payment card:
-
 ```go
 card, _, err := client.Billing.GetActiveCard(ctx)
 if err != nil {
-    log.Fatalf("Failed to get card: %v", err)
+    log.Fatalf("Failed to get active card: %v", err)
 }
 
-fmt.Printf("Active card: ****%s\n", card.Data.Card.Last4)
+fmt.Printf("Active card: %s ending in %s\n", card.Data.Card.Brand, card.Data.Card.Last4)
 ```
 
-### Delete Card
-
-Remove a payment card:
+### Subscribe To A Plan
 
 ```go
-_, err := client.Billing.DeleteCard(ctx, "card-uuid")
-```
-
-### Add Credit
-
-Add credit to account:
-
-```go
-credit, _, err := client.Billing.AddCredit(ctx, &pipeops.CreditRequest{
-    Amount: 100.00,
-})
-```
-
-### Apply Discount
-
-Apply a discount code:
-
-```go
-_, err := client.Billing.ApplyDiscount(ctx, &pipeops.ApplyDiscountRequest{
-    Code: "DISCOUNT20",
-})
-```
-
-### Get Subscription
-
-Get current subscription details:
-
-```go
-subscription, _, err := client.Billing.GetSubscription(ctx)
+resp, _, err := client.Billing.Subscribe(ctx, &pipeops.SubscribeRequest{PlanID: "startup"})
 if err != nil {
-    log.Fatalf("Failed to get subscription: %v", err)
+    log.Fatalf("Failed to subscribe: %v", err)
 }
 
-fmt.Printf("Plan: %s\n", subscription.Data.Subscription.Plan)
-fmt.Printf("Status: %s\n", subscription.Data.Subscription.Status)
+fmt.Println(resp.Data.CheckoutURL)
 ```
 
-### Cancel Subscription
-
-Cancel an active subscription:
+### Start Trial
 
 ```go
-_, err := client.Billing.CancelSubscription(ctx, "subscription-uuid")
-```
-
-### Export Invoices
-
-Export invoices in various formats:
-
-```go
-export, _, err := client.Billing.ExportInvoices(ctx, &pipeops.ExportInvoicesRequest{
-    Format:    "pdf",
-    StartDate: "2024-01-01",
-    EndDate:   "2024-12-31",
-})
-```
-
-## Complete Example
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "log"
-    
-    "github.com/PipeOpsHQ/pipeops-go-sdk/pipeops"
-)
-
-func main() {
-    client, _ := pipeops.NewClient("")
-    client.SetToken("your-token")
-    
-    ctx := context.Background()
-    
-    // Get current balance
-    balance, _, err := client.Billing.GetBalance(ctx)
-    if err != nil {
-        log.Fatalf("Failed to get balance: %v", err)
-    }
-    
-    fmt.Printf("Account Balance: $%.2f\n", balance.Data.Balance)
-    
-    // List recent invoices
-    invoices, _, err := client.Billing.ListInvoices(ctx, &pipeops.InvoiceListOptions{
-        Limit: 5,
-    })
-    if err != nil {
-        log.Fatalf("Failed to list invoices: %v", err)
-    }
-    
-    fmt.Printf("\nRecent Invoices:\n")
-    for _, invoice := range invoices.Data.Invoices {
-        fmt.Printf("- %s: $%.2f (%s)\n", 
-            invoice.Date, invoice.Amount, invoice.Status)
-    }
+_, err = client.Billing.StartTrial(ctx, &pipeops.StartTrialRequest{PlanID: "startup_v1"})
+if err != nil {
+    log.Fatalf("Failed to start trial: %v", err)
 }
 ```
 

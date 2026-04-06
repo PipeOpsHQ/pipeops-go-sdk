@@ -16,11 +16,17 @@ type BillingService struct {
 type Card struct {
 	ID        string     `json:"id,omitempty"`
 	UUID      string     `json:"uuid,omitempty"`
+	Provider  string     `json:"provider,omitempty"`
 	Last4     string     `json:"last4,omitempty"`
 	Brand     string     `json:"brand,omitempty"`
+	CardType  string     `json:"card_type,omitempty"`
 	ExpMonth  int        `json:"exp_month,omitempty"`
 	ExpYear   int        `json:"exp_year,omitempty"`
 	IsDefault bool       `json:"is_default,omitempty"`
+	IsActive  bool       `json:"is_active,omitempty"`
+	Channel   string     `json:"channel,omitempty"`
+	Bank      string     `json:"bank,omitempty"`
+	Country   string     `json:"country,omitempty"`
 	CreatedAt *Timestamp `json:"created_at,omitempty"`
 }
 
@@ -38,7 +44,9 @@ type CardResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 	Data    struct {
-		Card Card `json:"card"`
+		Card        Card   `json:"card"`
+		CheckoutURL string `json:"checkout_url,omitempty"`
+		Message     string `json:"message,omitempty"`
 	} `json:"data"`
 }
 
@@ -185,17 +193,26 @@ func (s *BillingService) GetUsagePlanProviders(ctx context.Context) (*http.Respo
 
 // Subscription represents a billing subscription.
 type Subscription struct {
-	ID        string     `json:"id,omitempty"`
-	UUID      string     `json:"uuid,omitempty"`
-	PlanID    string     `json:"plan_id,omitempty"`
-	PlanName  string     `json:"plan_name,omitempty"`
-	Status    string     `json:"status,omitempty"`
-	StartDate *Timestamp `json:"start_date,omitempty"`
-	EndDate   *Timestamp `json:"end_date,omitempty"`
-	Amount    float64    `json:"amount,omitempty"`
-	Currency  string     `json:"currency,omitempty"`
-	CreatedAt *Timestamp `json:"created_at,omitempty"`
-	UpdatedAt *Timestamp `json:"updated_at,omitempty"`
+	ID            string     `json:"id,omitempty"`
+	UUID          string     `json:"uuid,omitempty"`
+	PlanID        string     `json:"plan_id,omitempty"`
+	PlanName      string     `json:"plan_name,omitempty"`
+	PlanTier      string     `json:"plan_tier,omitempty"`
+	Status        string     `json:"status,omitempty"`
+	BillingType   string     `json:"billing_type,omitempty"`
+	BillingStatus string     `json:"billing_status,omitempty"`
+	PaymentMethod string     `json:"payment_method,omitempty"`
+	PlanPeriod    string     `json:"plan_period,omitempty"`
+	Provider      string     `json:"provider,omitempty"`
+	Description   string     `json:"description,omitempty"`
+	Quantity      int        `json:"quantity,omitempty"`
+	StartDate     *Timestamp `json:"start_date,omitempty"`
+	EndDate       *Timestamp `json:"end_date,omitempty"`
+	Date          *Timestamp `json:"date,omitempty"`
+	Amount        float64    `json:"amount,omitempty"`
+	Currency      string     `json:"currency,omitempty"`
+	CreatedAt     *Timestamp `json:"created_at,omitempty"`
+	UpdatedAt     *Timestamp `json:"updated_at,omitempty"`
 }
 
 // SubscriptionsResponse represents a list of subscriptions response.
@@ -212,21 +229,27 @@ type SubscriptionResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 	Data    struct {
-		Subscription Subscription `json:"subscription"`
+		Subscription  Subscription   `json:"subscription"`
+		Subscriptions []Subscription `json:"subscriptions,omitempty"`
+		CheckoutURL   string         `json:"checkout_url,omitempty"`
+		Message       string         `json:"message,omitempty"`
 	} `json:"data"`
 }
 
 // Plan represents a subscription plan.
 type Plan struct {
-	ID          string   `json:"id,omitempty"`
-	UUID        string   `json:"uuid,omitempty"`
-	Name        string   `json:"name,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Price       float64  `json:"price,omitempty"`
-	Currency    string   `json:"currency,omitempty"`
-	Interval    string   `json:"interval,omitempty"`
-	Features    []string `json:"features,omitempty"`
-	Active      bool     `json:"active,omitempty"`
+	ID              string   `json:"id,omitempty"`
+	UUID            string   `json:"uuid,omitempty"`
+	Name            string   `json:"name,omitempty"`
+	Description     string   `json:"description,omitempty"`
+	Price           float64  `json:"price,omitempty"`
+	Currency        string   `json:"currency,omitempty"`
+	Interval        string   `json:"interval,omitempty"`
+	Period          string   `json:"period,omitempty"`
+	Features        []string `json:"features,omitempty"`
+	Active          bool     `json:"active,omitempty"`
+	FreeTrialDays   int      `json:"free_trial_days,omitempty"`
+	ConcurrentBuild int      `json:"concurrent_build,omitempty"`
 }
 
 // PlansResponse represents a list of plans response.
@@ -246,8 +269,15 @@ type SubscribeRequest struct {
 // Subscribe creates a new subscription.
 func (s *BillingService) Subscribe(ctx context.Context, req *SubscribeRequest) (*SubscriptionResponse, *http.Response, error) {
 	u := "billing/subscribe"
+	if req != nil && req.PlanID != "" {
+		withPlan, err := addOptions(u, &billingPlanOptions{Plan: req.PlanID})
+		if err != nil {
+			return nil, nil, err
+		}
+		u = withPlan
+	}
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -380,6 +410,9 @@ func (s *BillingService) GetUsage(ctx context.Context) (*UsageResponse, *http.Re
 	usageResp := new(UsageResponse)
 	resp, err := s.client.Do(ctx, req, usageResp)
 	if err != nil {
+		if isNotFound(err) {
+			return nil, resp, fmt.Errorf("billing usage endpoint is not exposed by the current controller; use GetBillingInfo, GetBalance, or GetCurrentSubscription instead: %w", err)
+		}
 		return nil, resp, err
 	}
 
@@ -514,8 +547,15 @@ type StartTrialRequest struct {
 // StartTrial starts a free trial.
 func (s *BillingService) StartTrial(ctx context.Context, req *StartTrialRequest) (*http.Response, error) {
 	u := "billing/start-trial"
+	if req != nil && req.PlanID != "" {
+		withPlan, err := addOptions(u, &billingPlanOptions{Plan: req.PlanID})
+		if err != nil {
+			return nil, err
+		}
+		u = withPlan
+	}
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -590,6 +630,11 @@ func (s *BillingService) GetWorkspaceSubscription(ctx context.Context, workspace
 // GetTeamSeatSubscription retrieves team seat subscription.
 func (s *BillingService) GetTeamSeatSubscription(ctx context.Context) (*SubscriptionResponse, *http.Response, error) {
 	u := "billing/subscriptions/workspace/team-seat"
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+		if withWorkspace, err := addOptions(u, &billingWorkspaceOption{Workspace: workspaceUUID}); err == nil {
+			u = withWorkspace
+		}
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
