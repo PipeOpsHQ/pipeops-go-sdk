@@ -402,3 +402,156 @@ func (s *CloudProviderService) CalculateEBSCost(ctx context.Context, req *EBSCal
 
 	return calcResp, resp, nil
 }
+
+// CloudRegion represents a cloud provider region option.
+type CloudRegion struct {
+	Title string `json:"title,omitempty"`
+	Value string `json:"value,omitempty"`
+	Code  string `json:"code,omitempty"`
+}
+
+// CloudProviderRegionsResponse represents a cloud provider regions response.
+type CloudProviderRegionsResponse struct {
+	Success bool                     `json:"success,omitempty"`
+	Status  string                   `json:"status,omitempty"`
+	Message string                   `json:"message,omitempty"`
+	Data    map[string][]CloudRegion `json:"data"`
+}
+
+// CloudInstanceType represents a cloud provider instance type.
+type CloudInstanceType struct {
+	Name         string  `json:"name,omitempty"`
+	VCPU         int     `json:"vcpu,omitempty"`
+	Memory       int64   `json:"memory,omitempty"`
+	MinNode      int     `json:"minNode,omitempty"`
+	MaxNode      int     `json:"maxNode,omitempty"`
+	PricePerHour float64 `json:"pricePerHour,omitempty"`
+	DefaultNode  int     `json:"defaultNode,omitempty"`
+}
+
+// CloudProviderInstanceTypesOptions specifies query parameters for instance type listing.
+type CloudProviderInstanceTypesOptions struct {
+	InstanceClass string `url:"instanceClass,omitempty"`
+	Region        string `url:"region,omitempty"`
+}
+
+// CloudProviderInstanceTypesResponse represents instance types grouped by provider and category.
+type CloudProviderInstanceTypesResponse struct {
+	Success bool                                      `json:"success,omitempty"`
+	Status  string                                    `json:"status,omitempty"`
+	Message string                                    `json:"message,omitempty"`
+	Data    map[string]map[string][]CloudInstanceType `json:"data"`
+}
+
+// CloudProviderInstanceCategoriesResponse represents available instance categories.
+type CloudProviderInstanceCategoriesResponse struct {
+	Success bool   `json:"success,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+	Data    map[string]struct {
+		InstanceCategories []string `json:"instanceCategories"`
+	} `json:"data"`
+}
+
+// CloudServerTemplate represents a recommended server template.
+type CloudServerTemplate struct {
+	UUID             string `json:"uuid,omitempty"`
+	InstanceCategory string `json:"instanceCategory,omitempty"`
+	Package          string `json:"package,omitempty"`
+	Environment      string `json:"environment,omitempty"`
+	CloudProvider    string `json:"cloudProvider,omitempty"`
+	VCPU             int    `json:"vcpu,omitempty"`
+	Memory           int64  `json:"memory,omitempty"`
+	Storage          int    `json:"storage,omitempty"`
+	GPU              bool   `json:"gpu,omitempty"`
+	MinNode          int    `json:"minNode,omitempty"`
+	DefaultNode      int    `json:"defaultNode,omitempty"`
+	MaxNode          int    `json:"maxNode,omitempty"`
+}
+
+// CloudProviderServerTemplatesResponse represents cloud provider server templates.
+type CloudProviderServerTemplatesResponse struct {
+	Success bool                             `json:"success,omitempty"`
+	Status  string                           `json:"status,omitempty"`
+	Message string                           `json:"message,omitempty"`
+	Data    map[string][]CloudServerTemplate `json:"data"`
+}
+
+// ListRegions lists cloud provider regions.
+func (s *CloudProviderService) ListRegions(ctx context.Context, provider string) (*CloudProviderRegionsResponse, *http.Response, error) {
+	u := fmt.Sprintf("app/%s/regions", provider)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	regionsResp := new(CloudProviderRegionsResponse)
+	resp, err := s.client.Do(ctx, req, regionsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return regionsResp, resp, nil
+}
+
+// ListInstanceTypes lists cloud provider instance types.
+func (s *CloudProviderService) ListInstanceTypes(ctx context.Context, provider string, opts *CloudProviderInstanceTypesOptions) (*CloudProviderInstanceTypesResponse, *http.Response, error) {
+	u := fmt.Sprintf("app/%s/instance-types", provider)
+	var err error
+	if opts != nil {
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	instanceTypesResp := new(CloudProviderInstanceTypesResponse)
+	resp, err := s.client.Do(ctx, req, instanceTypesResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return instanceTypesResp, resp, nil
+}
+
+// ListInstanceCategories lists cloud provider instance categories.
+func (s *CloudProviderService) ListInstanceCategories(ctx context.Context, provider string) (*CloudProviderInstanceCategoriesResponse, *http.Response, error) {
+	u := fmt.Sprintf("app/%s/instance-categories", provider)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	categoriesResp := new(CloudProviderInstanceCategoriesResponse)
+	resp, err := s.client.Do(ctx, req, categoriesResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return categoriesResp, resp, nil
+}
+
+// ListServerTemplates lists recommended server templates for a cloud provider.
+func (s *CloudProviderService) ListServerTemplates(ctx context.Context, provider string) (*CloudProviderServerTemplatesResponse, *http.Response, error) {
+	u := fmt.Sprintf("app/%s/server-templates", provider)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	templatesResp := new(CloudProviderServerTemplatesResponse)
+	resp, err := s.client.Do(ctx, req, templatesResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return templatesResp, resp, nil
+}

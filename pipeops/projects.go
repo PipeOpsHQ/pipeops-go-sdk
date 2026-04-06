@@ -1960,3 +1960,60 @@ func (s *ProjectService) CheckProjectName(ctx context.Context) (*http.Response, 
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
 }
+
+// DeployFromImageMemory represents memory allocation for BYOI deployment.
+type DeployFromImageMemory struct {
+	Value int    `json:"value"`
+	Unit  string `json:"unit"`
+}
+
+// DeployFromImageRequest represents a BYOI deployment request.
+type DeployFromImageRequest struct {
+	Name               string                `json:"name"`
+	ContainerImage     string                `json:"container_image"`
+	ImageTag           string                `json:"image_tag,omitempty"`
+	ExternalRegistryID int                   `json:"external_registry_id,omitempty"`
+	Port               int                   `json:"port"`
+	EnvVariables       []EnvVariable         `json:"env_variables,omitempty"`
+	Replicas           int                   `json:"replicas,omitempty"`
+	VCPU               float64               `json:"vcpu"`
+	Memory             DeployFromImageMemory `json:"memory"`
+	ClusterUUID        string                `json:"cluster_uuid"`
+	EnvironmentUUID    string                `json:"environment_uuid"`
+	WorkspaceUUID      string                `json:"workspace_uuid"`
+	Preset             string                `json:"preset,omitempty"`
+}
+
+// DeployFromImageResponse represents a BYOI deployment response.
+type DeployFromImageResponse struct {
+	Success bool   `json:"success,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+	Data    struct {
+		BuildSHA       string `json:"build_sha"`
+		ContainerImage string `json:"container_image"`
+		Domain         string `json:"domain"`
+		ImageTag       string `json:"image_tag"`
+		ProjectName    string `json:"project_name"`
+		ProjectUUID    string `json:"project_uuid"`
+		Status         string `json:"status"`
+	} `json:"data"`
+}
+
+// DeployFromImage deploys a new project from a pre-built container image.
+func (s *ProjectService) DeployFromImage(ctx context.Context, req *DeployFromImageRequest) (*DeployFromImageResponse, *http.Response, error) {
+	u := "project/deploy-from-image"
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deployResp := new(DeployFromImageResponse)
+	resp, err := s.client.Do(ctx, httpReq, deployResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return deployResp, resp, nil
+}

@@ -114,6 +114,7 @@ type Client struct {
 	AuditLogs           *AuditLogService
 	Alerts              *AlertService
 	ServiceTokens       *ServiceTokenService
+	ExternalRegistries  *ExternalRegistryService
 }
 
 // newHTTPClient creates a properly configured HTTP client for production use.
@@ -244,6 +245,7 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	c.AuditLogs = &AuditLogService{client: c}
 	c.Alerts = &AlertService{client: c}
 	c.ServiceTokens = &ServiceTokenService{client: c}
+	c.ExternalRegistries = &ExternalRegistryService{client: c}
 
 	return c, nil
 }
