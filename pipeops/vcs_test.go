@@ -324,3 +324,37 @@ func TestAddOnService_List_UsesSearchAndFilterQuery(t *testing.T) {
 		t.Fatalf("addons len = %d, want %d", len(resp.Data), 1)
 	}
 }
+
+func TestAddOnService_ListCategories_DecodesArrayData(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+		}
+		if r.URL.Path != "/addons/categories" {
+			t.Fatalf("path = %s, want %s", r.URL.Path, "/addons/categories")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if _, writeErr := w.Write([]byte(`{"success":true,"message":"ok","data":[{"id":"cat-1","name":"Databases"}]}`)); writeErr != nil {
+			t.Fatalf("write response error: %v", writeErr)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient error: %v", err)
+	}
+
+	resp, _, err := client.AddOns.ListCategories(context.Background())
+	if err != nil {
+		t.Fatalf("AddOns.ListCategories error: %v", err)
+	}
+	if len(resp.Data.Categories) != 1 {
+		t.Fatalf("categories len = %d, want %d", len(resp.Data.Categories), 1)
+	}
+	if got := resp.Data.Categories[0].Name; got != "Databases" {
+		t.Fatalf("category name = %q, want %q", got, "Databases")
+	}
+}

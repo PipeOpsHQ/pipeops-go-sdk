@@ -977,6 +977,114 @@ func (s *ProjectService) Stop(ctx context.Context, projectUUID string) (*http.Re
 	return resp, err
 }
 
+// ProjectDeploymentMeta represents pagination metadata for project deployment endpoints.
+type ProjectDeploymentMeta struct {
+	TotalPages   int `json:"total_pages,omitempty"`
+	CurrentPage  int `json:"current_page,omitempty"`
+	NextPage     int `json:"next_page,omitempty"`
+	CurrentCount int `json:"current_count,omitempty"`
+}
+
+// ProjectDeploymentRecord represents a project deployment payload.
+type ProjectDeploymentRecord map[string]interface{}
+
+// ProjectDeploymentsResponse represents project deployment list response.
+type ProjectDeploymentsResponse struct {
+	Success bool                      `json:"success,omitempty"`
+	Status  string                    `json:"status,omitempty"`
+	Message string                    `json:"message"`
+	Data    []ProjectDeploymentRecord `json:"data,omitempty"`
+	Meta    ProjectDeploymentMeta     `json:"meta,omitempty"`
+}
+
+// ProjectDeploymentHistoryResponse represents project deployment history response.
+type ProjectDeploymentHistoryResponse struct {
+	Success bool                      `json:"success,omitempty"`
+	Status  string                    `json:"status,omitempty"`
+	Message string                    `json:"message"`
+	Data    []ProjectDeploymentRecord `json:"data,omitempty"`
+	Meta    ProjectDeploymentMeta     `json:"meta,omitempty"`
+}
+
+// ProjectDeploymentListOptions specifies optional parameters for listing project deployments.
+type ProjectDeploymentListOptions struct {
+	FilterBy string `url:"filterBy,omitempty"`
+	Page     int    `url:"page,omitempty"`
+	Limit    int    `url:"limit,omitempty"`
+}
+
+// ProjectDeploymentHistoryOptions specifies optional parameters for listing project deployment history.
+type ProjectDeploymentHistoryOptions struct {
+	Page  int `url:"page,omitempty"`
+	Limit int `url:"limit,omitempty"`
+}
+
+// ListDeployments lists build or git deployments for a project.
+func (s *ProjectService) ListDeployments(ctx context.Context, projectUUID string, opts *ProjectDeploymentListOptions) (*ProjectDeploymentsResponse, *http.Response, error) {
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+
+	u := fmt.Sprintf("project/get-deployments/%s", url.PathEscape(projectUUID))
+	if opts != nil {
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deploymentsResp := new(ProjectDeploymentsResponse)
+	resp, err := s.client.Do(ctx, req, deploymentsResp)
+	if err != nil {
+		return nil, resp, err
+	}
+	if deploymentsResp.Status == "" && resp != nil && resp.StatusCode < http.StatusBadRequest {
+		deploymentsResp.Status = "success"
+	}
+
+	return deploymentsResp, resp, nil
+}
+
+// ListDeploymentHistory lists deployment history for a project.
+func (s *ProjectService) ListDeploymentHistory(ctx context.Context, projectUUID string, opts *ProjectDeploymentHistoryOptions) (*ProjectDeploymentHistoryResponse, *http.Response, error) {
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+
+	u := fmt.Sprintf("project/deployment/%s", url.PathEscape(projectUUID))
+	if opts != nil {
+		var err error
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	historyResp := new(ProjectDeploymentHistoryResponse)
+	resp, err := s.client.Do(ctx, req, historyResp)
+	if err != nil {
+		return nil, resp, err
+	}
+	if historyResp.Status == "" && resp != nil && resp.StatusCode < http.StatusBadRequest {
+		historyResp.Status = "success"
+	}
+
+	return historyResp, resp, nil
+}
+
 // MetricsRequest represents a metrics request.
 type MetricsRequest struct {
 	App           string `json:"app,omitempty" url:"app,omitempty"`

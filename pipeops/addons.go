@@ -1,7 +1,9 @@
 package pipeops
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -240,13 +242,53 @@ type AddOnCategory struct {
 	Icon        string `json:"icon,omitempty"`
 }
 
+type AddOnCategoriesData struct {
+	Categories []AddOnCategory `json:"categories,omitempty"`
+}
+
+func (d *AddOnCategoriesData) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || string(trimmed) == "null" {
+		return nil
+	}
+
+	switch trimmed[0] {
+	case '[':
+		var categories []AddOnCategory
+		if err := json.Unmarshal(trimmed, &categories); err != nil {
+			return err
+		}
+		d.Categories = categories
+		return nil
+	case '{':
+		var wrapped struct {
+			Categories []AddOnCategory `json:"categories,omitempty"`
+		}
+		if err := json.Unmarshal(trimmed, &wrapped); err == nil && wrapped.Categories != nil {
+			d.Categories = wrapped.Categories
+			return nil
+		}
+
+		var single AddOnCategory
+		if err := json.Unmarshal(trimmed, &single); err != nil {
+			return err
+		}
+		if single.ID == "" && single.UUID == "" && single.Name == "" && single.Description == "" && single.Icon == "" {
+			return nil
+		}
+		d.Categories = []AddOnCategory{single}
+		return nil
+	default:
+		return fmt.Errorf("unexpected add-on categories data: %s", string(trimmed))
+	}
+}
+
 // AddOnCategoriesResponse represents a list of add-on categories response.
 type AddOnCategoriesResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Categories []AddOnCategory `json:"categories"`
-	} `json:"data"`
+	Success bool                `json:"success,omitempty"`
+	Status  string              `json:"status,omitempty"`
+	Message string              `json:"message"`
+	Data    AddOnCategoriesData `json:"data,omitempty"`
 }
 
 // ListCategories lists all add-on categories.
