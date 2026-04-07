@@ -17,6 +17,9 @@ func TestProjectService_ListDeployments_UsesControllerRouteAndQuery(t *testing.T
 		if r.URL.Path != "/project/get-deployments/p1" {
 			t.Fatalf("path = %s, want %s", r.URL.Path, "/project/get-deployments/p1")
 		}
+		if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+			t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+		}
 		if got := r.URL.Query().Get("filterBy"); got != "git" {
 			t.Fatalf("filterBy = %q, want %q", got, "git")
 		}
@@ -39,7 +42,7 @@ func TestProjectService_ListDeployments_UsesControllerRouteAndQuery(t *testing.T
 		t.Fatalf("NewClient error: %v", err)
 	}
 
-	resp, _, err := client.Projects.ListDeployments(context.Background(), "p1", &ProjectDeploymentListOptions{FilterBy: "git", Page: 2, Limit: 5})
+	resp, _, err := client.Projects.ListDeployments(context.Background(), "p1", &ProjectDeploymentListOptions{WorkspaceUUID: "w1", FilterBy: "git", Page: 2, Limit: 5})
 	if err != nil {
 		t.Fatalf("Projects.ListDeployments error: %v", err)
 	}
@@ -64,6 +67,9 @@ func TestProjectService_ListDeploymentHistory_UsesControllerRouteAndPagination(t
 		if r.URL.Path != "/project/deployment/p1" {
 			t.Fatalf("path = %s, want %s", r.URL.Path, "/project/deployment/p1")
 		}
+		if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {
+			t.Fatalf("workspace_uuid = %q, want %q", got, "w1")
+		}
 		if got := r.URL.Query().Get("page"); got != "3" {
 			t.Fatalf("page = %q, want %q", got, "3")
 		}
@@ -83,7 +89,7 @@ func TestProjectService_ListDeploymentHistory_UsesControllerRouteAndPagination(t
 		t.Fatalf("NewClient error: %v", err)
 	}
 
-	resp, _, err := client.Projects.ListDeploymentHistory(context.Background(), "p1", &ProjectDeploymentHistoryOptions{Page: 3, Limit: 10})
+	resp, _, err := client.Projects.ListDeploymentHistory(context.Background(), "p1", &ProjectDeploymentHistoryOptions{WorkspaceID: "w1", Page: 3, Limit: 10})
 	if err != nil {
 		t.Fatalf("Projects.ListDeploymentHistory error: %v", err)
 	}

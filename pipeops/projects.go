@@ -1008,15 +1008,19 @@ type ProjectDeploymentHistoryResponse struct {
 
 // ProjectDeploymentListOptions specifies optional parameters for listing project deployments.
 type ProjectDeploymentListOptions struct {
-	FilterBy string `url:"filterBy,omitempty"`
-	Page     int    `url:"page,omitempty"`
-	Limit    int    `url:"limit,omitempty"`
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+	WorkspaceID   string `url:"workspace_id,omitempty"`
+	FilterBy      string `url:"filterBy,omitempty"`
+	Page          int    `url:"page,omitempty"`
+	Limit         int    `url:"limit,omitempty"`
 }
 
 // ProjectDeploymentHistoryOptions specifies optional parameters for listing project deployment history.
 type ProjectDeploymentHistoryOptions struct {
-	Page  int `url:"page,omitempty"`
-	Limit int `url:"limit,omitempty"`
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+	WorkspaceID   string `url:"workspace_id,omitempty"`
+	Page          int    `url:"page,omitempty"`
+	Limit         int    `url:"limit,omitempty"`
 }
 
 // ListDeployments lists build or git deployments for a project.
@@ -1028,8 +1032,13 @@ func (s *ProjectService) ListDeployments(ctx context.Context, projectUUID string
 
 	u := fmt.Sprintf("project/get-deployments/%s", url.PathEscape(projectUUID))
 	if opts != nil {
+		queryOpts := *opts
+		if workspaceUUID := coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID); workspaceUUID != "" {
+			queryOpts.WorkspaceUUID = workspaceUUID
+			queryOpts.WorkspaceID = ""
+		}
 		var err error
-		u, err = addOptions(u, opts)
+		u, err = addOptions(u, &queryOpts)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1061,8 +1070,13 @@ func (s *ProjectService) ListDeploymentHistory(ctx context.Context, projectUUID 
 
 	u := fmt.Sprintf("project/deployment/%s", url.PathEscape(projectUUID))
 	if opts != nil {
+		queryOpts := *opts
+		if workspaceUUID := coalesceNonEmpty(opts.WorkspaceUUID, opts.WorkspaceID); workspaceUUID != "" {
+			queryOpts.WorkspaceUUID = workspaceUUID
+			queryOpts.WorkspaceID = ""
+		}
 		var err error
-		u, err = addOptions(u, opts)
+		u, err = addOptions(u, &queryOpts)
 		if err != nil {
 			return nil, nil, err
 		}

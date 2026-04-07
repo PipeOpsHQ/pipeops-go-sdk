@@ -72,6 +72,61 @@ func TestServerService_List_UsesClusterWorkspaceEndpoint(t *testing.T) {
 	}
 }
 
+func TestServerService_Get_AcceptsSingleClusterObject(t *testing.T) {
+	t.Parallel()
+
+	wantClusterUUID := "c1"
+	wantWorkspaceUUID := "workspace-123"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want %s", r.Method, http.MethodGet)
+		}
+		if r.URL.Path != "/cluster/"+wantClusterUUID {
+			t.Fatalf("path = %s, want %s", r.URL.Path, "/cluster/"+wantClusterUUID)
+		}
+		if got := r.URL.Query().Get("workspace_uuid"); got != wantWorkspaceUUID {
+			t.Fatalf("workspace_uuid = %q, want %q", got, wantWorkspaceUUID)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{
+			"success": true,
+			"message": "ok",
+			"data": {
+				"id": 42,
+				"uuid": "c1",
+				"name": "cluster-1",
+				"cloudProvider": "aws",
+				"region": "us-east-1",
+				"status": "ready",
+				"WorkspaceID": 99
+			}
+		}`)); err != nil {
+			t.Fatalf("write response error: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient error: %v", err)
+	}
+
+	resp, _, err := client.Servers.Get(context.Background(), wantClusterUUID, wantWorkspaceUUID)
+	if err != nil {
+		t.Fatalf("Servers.Get error: %v", err)
+	}
+	if resp.Status != "success" {
+		t.Fatalf("Status = %q, want %q", resp.Status, "success")
+	}
+
+	got := resp.Data.Server
+	if got.ID != "42" || got.UUID != "c1" || got.Name != "cluster-1" || got.Provider != "aws" || got.Region != "us-east-1" || got.Status != "ready" || got.WorkspaceID != "99" {
+		t.Fatalf("server = %+v, want mapped single-cluster object fields", got)
+	}
+}
+
 func TestServerService_Get_UsesClusterWorkspaceEndpoint(t *testing.T) {
 	t.Parallel()
 

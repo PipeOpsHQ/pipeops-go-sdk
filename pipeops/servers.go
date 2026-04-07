@@ -2,6 +2,7 @@ package pipeops
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -96,13 +97,17 @@ func (s *ServerService) Get(ctx context.Context, clusterUUID, workspaceUUID stri
 		return nil, nil, err
 	}
 
-	rawResp := new(clusterListResponse)
+	rawResp := new(clusterFetchResponse)
 	resp, err := s.client.Do(ctx, req, rawResp)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	if len(rawResp.Data.Clusters) == 0 {
+	clusters, err := parseClusterFetchItems(rawResp.Data)
+	if err != nil {
+		return nil, resp, err
+	}
+	if len(clusters) == 0 {
 		return nil, resp, errors.New("no cluster data returned")
 	}
 
@@ -110,7 +115,7 @@ func (s *ServerService) Get(ctx context.Context, clusterUUID, workspaceUUID stri
 		Status:  coalesceNonEmpty(rawResp.Status, statusFromSuccess(rawResp.Success)),
 		Message: rawResp.Message,
 	}
-	serverResp.Data.Server = clusterToServer(rawResp.Data.Clusters[0])
+	serverResp.Data.Server = clusterToServer(clusters[0])
 
 	return serverResp, resp, nil
 }
@@ -211,6 +216,13 @@ type clusterWorkspaceOptions struct {
 	WorkspaceUUID string `url:"workspace_uuid"`
 }
 
+type clusterFetchResponse struct {
+	Success bool            `json:"success,omitempty"`
+	Status  string          `json:"status,omitempty"`
+	Message string          `json:"message,omitempty"`
+	Data    json.RawMessage `json:"data,omitempty"`
+}
+
 type clusterListResponse struct {
 	Success bool   `json:"success,omitempty"`
 	Status  string `json:"status,omitempty"`
@@ -222,14 +234,44 @@ type clusterListResponse struct {
 
 type clusterListItem struct {
 	Cluster struct {
-		UUID          string `json:"uuid,omitempty"`
-		Name          string `json:"name,omitempty"`
-		CloudProvider string `json:"cloudProvider,omitempty"`
-		Region        string `json:"region,omitempty"`
-		Status        string `json:"status,omitempty"`
+		ID               jsonID `json:"id,omitempty"`
+		IDAlt            jsonID `json:"ID,omitempty"`
+		UUID             string `json:"uuid,omitempty"`
+		UUIDAlt          string `json:"UUID,omitempty"`
+		Name             string `json:"name,omitempty"`
+		NameAlt          string `json:"Name,omitempty"`
+		CloudProvider    string `json:"cloudProvider,omitempty"`
+		CloudProviderAlt string `json:"CloudProvider,omitempty"`
+		Region           string `json:"region,omitempty"`
+		RegionAlt        string `json:"Region,omitempty"`
+		Status           string `json:"status,omitempty"`
+		StatusAlt        string `json:"Status,omitempty"`
+		WorkspaceID      jsonID `json:"workspace_id,omitempty"`
+		WorkspaceIDAlt   jsonID `json:"WorkspaceID,omitempty"`
 	} `json:"Cluster,omitempty"`
 	IsActive bool `json:"IsActive,omitempty"`
 	InUse    bool `json:"InUse,omitempty"`
+}
+
+type clusterFetchItem struct {
+	ID               jsonID `json:"id,omitempty"`
+	IDAlt            jsonID `json:"ID,omitempty"`
+	UUID             string `json:"uuid,omitempty"`
+	UUIDAlt          string `json:"UUID,omitempty"`
+	Name             string `json:"name,omitempty"`
+	NameAlt          string `json:"Name,omitempty"`
+	CloudProvider    string `json:"cloudProvider,omitempty"`
+	CloudProviderAlt string `json:"CloudProvider,omitempty"`
+	Region           string `json:"region,omitempty"`
+	RegionAlt        string `json:"Region,omitempty"`
+	Status           string `json:"status,omitempty"`
+	StatusAlt        string `json:"Status,omitempty"`
+	WorkspaceID      jsonID `json:"workspace_id,omitempty"`
+	WorkspaceIDAlt   jsonID `json:"WorkspaceID,omitempty"`
+	IsActive         *bool  `json:"IsActive,omitempty"`
+	IsActiveAlt      *bool  `json:"is_active,omitempty"`
+	InUse            *bool  `json:"InUse,omitempty"`
+	InUseAlt         *bool  `json:"in_use,omitempty"`
 }
 
 type createServerPayload struct {
@@ -240,7 +282,7 @@ type createServerPayload struct {
 }
 
 func clusterToServer(cluster clusterListItem) Server {
-	status := cluster.Cluster.Status
+	status := coalesceNonEmpty(cluster.Cluster.Status, cluster.Cluster.StatusAlt)
 	if status == "" {
 		if cluster.IsActive {
 			status = "active"
@@ -250,12 +292,89 @@ func clusterToServer(cluster clusterListItem) Server {
 	}
 
 	return Server{
-		UUID:     cluster.Cluster.UUID,
-		Name:     cluster.Cluster.Name,
-		Provider: cluster.Cluster.CloudProvider,
-		Region:   cluster.Cluster.Region,
-		Status:   status,
+		ID:          coalesceNonEmpty(cluster.Cluster.ID.String(), cluster.Cluster.IDAlt.String()),
+		UUID:        coalesceNonEmpty(cluster.Cluster.UUID, cluster.Cluster.UUIDAlt),
+		Name:        coalesceNonEmpty(cluster.Cluster.Name, cluster.Cluster.NameAlt),
+		Provider:    coalesceNonEmpty(cluster.Cluster.CloudProvider, cluster.Cluster.CloudProviderAlt),
+		Region:      coalesceNonEmpty(cluster.Cluster.Region, cluster.Cluster.RegionAlt),
+		Status:      status,
+		WorkspaceID: coalesceNonEmpty(cluster.Cluster.WorkspaceID.String(), cluster.Cluster.WorkspaceIDAlt.String()),
 	}
+}
+
+func parseClusterFetchItems(data json.RawMessage) ([]clusterListItem, error) {
+	if len(data) == 0 || string(data) == "null" {
+		return nil, nil
+	}
+
+	var wrapped struct {
+		Clusters    []clusterListItem `json:"clusters,omitempty"`
+		ClustersAlt []clusterListItem `json:"Clusters,omitempty"`
+		Cluster     *clusterFetchItem `json:"cluster,omitempty"`
+		ClusterAlt  *clusterFetchItem `json:"Cluster,omitempty"`
+	}
+	if err := json.Unmarshal(data, &wrapped); err == nil {
+		switch {
+		case len(wrapped.Clusters) > 0:
+			return wrapped.Clusters, nil
+		case len(wrapped.ClustersAlt) > 0:
+			return wrapped.ClustersAlt, nil
+		case wrapped.Cluster != nil && !wrapped.Cluster.isEmpty():
+			return []clusterListItem{wrapped.Cluster.toListItem()}, nil
+		case wrapped.ClusterAlt != nil && !wrapped.ClusterAlt.isEmpty():
+			return []clusterListItem{wrapped.ClusterAlt.toListItem()}, nil
+		}
+	}
+
+	var direct clusterFetchItem
+	if err := json.Unmarshal(data, &direct); err != nil {
+		return nil, err
+	}
+	if direct.isEmpty() {
+		return nil, nil
+	}
+	return []clusterListItem{direct.toListItem()}, nil
+}
+
+func (c clusterFetchItem) isEmpty() bool {
+	return coalesceNonEmpty(
+		c.ID.String(),
+		c.IDAlt.String(),
+		c.UUID,
+		c.UUIDAlt,
+		c.Name,
+		c.NameAlt,
+		c.CloudProvider,
+		c.CloudProviderAlt,
+		c.Region,
+		c.RegionAlt,
+		c.Status,
+		c.StatusAlt,
+		c.WorkspaceID.String(),
+		c.WorkspaceIDAlt.String(),
+	) == ""
+}
+
+func (c clusterFetchItem) toListItem() clusterListItem {
+	var item clusterListItem
+	item.Cluster.ID = jsonID{value: coalesceNonEmpty(c.ID.String(), c.IDAlt.String())}
+	item.Cluster.UUID = coalesceNonEmpty(c.UUID, c.UUIDAlt)
+	item.Cluster.Name = coalesceNonEmpty(c.Name, c.NameAlt)
+	item.Cluster.CloudProvider = coalesceNonEmpty(c.CloudProvider, c.CloudProviderAlt)
+	item.Cluster.Region = coalesceNonEmpty(c.Region, c.RegionAlt)
+	item.Cluster.Status = coalesceNonEmpty(c.Status, c.StatusAlt)
+	item.Cluster.WorkspaceID = jsonID{value: coalesceNonEmpty(c.WorkspaceID.String(), c.WorkspaceIDAlt.String())}
+	if c.IsActive != nil {
+		item.IsActive = *c.IsActive
+	} else if c.IsActiveAlt != nil {
+		item.IsActive = *c.IsActiveAlt
+	}
+	if c.InUse != nil {
+		item.InUse = *c.InUse
+	} else if c.InUseAlt != nil {
+		item.InUse = *c.InUseAlt
+	}
+	return item
 }
 
 func statusFromSuccess(success bool) string {
