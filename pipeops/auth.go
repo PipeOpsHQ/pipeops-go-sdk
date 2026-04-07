@@ -32,15 +32,25 @@ type LoginResponse struct {
 
 // User represents a PipeOps user.
 type User struct {
-	ID            string     `json:"id,omitempty"`
-	UUID          string     `json:"uuid,omitempty"`
-	Email         string     `json:"email,omitempty"`
-	FirstName     string     `json:"first_name,omitempty"`
-	LastName      string     `json:"last_name,omitempty"`
-	IsActive      bool       `json:"is_active,omitempty"`
-	EmailVerified bool       `json:"email_verified,omitempty"`
-	CreatedAt     *Timestamp `json:"created_at,omitempty"`
-	UpdatedAt     *Timestamp `json:"updated_at,omitempty"`
+	ID                       string     `json:"id,omitempty"`
+	UUID                     string     `json:"uuid,omitempty"`
+	Email                    string     `json:"email,omitempty"`
+	FirstName                string     `json:"first_name,omitempty"`
+	LastName                 string     `json:"last_name,omitempty"`
+	FullName                 string     `json:"full_name,omitempty"`
+	AvatarURL                string     `json:"avatar_url,omitempty"`
+	IsActive                 bool       `json:"is_active,omitempty"`
+	EmailVerified            bool       `json:"email_verified,omitempty"`
+	PasswordChangedDate      *Timestamp `json:"password_changed_date,omitempty"`
+	OAuthUser                string     `json:"oauth_user,omitempty"`
+	TempPlanID               int        `json:"temp_plan_id,omitempty"`
+	PaymentMethod            bool       `json:"payment_method,omitempty"`
+	ChargeFailed             bool       `json:"charge_failed,omitempty"`
+	IsSubscriptionActive     bool       `json:"is_subscription_active,omitempty"`
+	IsSubscriptionActiveDate *Timestamp `json:"is_subscription_active_date,omitempty"`
+	Namespace                string     `json:"namespace,omitempty"`
+	CreatedAt                *Timestamp `json:"created_at,omitempty"`
+	UpdatedAt                *Timestamp `json:"updated_at,omitempty"`
 }
 
 // Login authenticates a user with email and password.
