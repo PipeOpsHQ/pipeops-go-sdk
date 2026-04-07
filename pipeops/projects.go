@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -725,12 +726,15 @@ func (s *ProjectService) fetchLogs(ctx context.Context, projectUUID string, opts
 
 // GitHubBranchesRequest represents a request to fetch GitHub branches.
 type GitHubBranchesRequest struct {
-	Repository string `json:"repository"`
+	Repository   string `json:"repository,omitempty"`
+	RepoFullname string `json:"repo_fullname,omitempty"`
+	Visibility   string `json:"visibility,omitempty"`
 }
 
 // GitHubBranchesResponse represents GitHub branches response.
 type GitHubBranchesResponse struct {
 	Status  string `json:"status"`
+	Success bool   `json:"success,omitempty"`
 	Message string `json:"message"`
 	Data    struct {
 		Branches []string `json:"branches"`
@@ -739,20 +743,30 @@ type GitHubBranchesResponse struct {
 
 // GetGitHubBranches fetches branches from a GitHub repository.
 func (s *ProjectService) GetGitHubBranches(ctx context.Context, req *GitHubBranchesRequest) (*GitHubBranchesResponse, *http.Response, error) {
-	u := "project/github/branches"
-
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
-	if err != nil {
-		return nil, nil, err
+	if req == nil {
+		return nil, nil, errors.New("github branches request cannot be nil")
 	}
 
-	branchesResp := new(GitHubBranchesResponse)
-	resp, err := s.client.Do(ctx, httpReq, branchesResp)
+	branchesResp, resp, err := s.ListProviderBranches(ctx, "github", &ProviderBranchesRequest{
+		RepoFullname: coalesceNonEmpty(req.RepoFullname, req.Repository),
+		Visibility:   req.Visibility,
+	}, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return branchesResp, resp, nil
+	result := &GitHubBranchesResponse{
+		Status:  branchesResp.Status,
+		Success: branchesResp.Success,
+		Message: branchesResp.Message,
+	}
+	for _, branch := range branchesResp.Data {
+		if name, ok := branch["name"].(string); ok && name != "" {
+			result.Data.Branches = append(result.Data.Branches, name)
+		}
+	}
+
+	return result, resp, nil
 }
 
 // DomainRequest represents a request to add/update a project domain.
@@ -1605,25 +1619,75 @@ func (s *ProjectService) GetNetworkSettings(ctx context.Context, projectUUID str
 
 // GitHub/GitLab Integration
 
-// GitHubOrgsResponse represents GitHub organizations response.
-type GitHubOrgsResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Organizations []map[string]interface{} `json:"organizations"`
-	} `json:"data"`
+// ProviderCollectionOptions specifies optional paging parameters for provider collection endpoints.
+type ProviderCollectionOptions struct {
+	Page int `url:"page,omitempty"`
 }
 
-// GetGitHubOrgs retrieves GitHub organizations.
-func (s *ProjectService) GetGitHubOrgs(ctx context.Context) (*GitHubOrgsResponse, *http.Response, error) {
-	u := "project/github/organisations"
+// ProviderBranchesOptions specifies optional query parameters for provider branch endpoints.
+type ProviderBranchesOptions struct {
+	Search string `url:"search,omitempty"`
+}
 
+// ProviderCollectionResponse represents a provider collection response.
+type ProviderCollectionResponse struct {
+	Status   string                   `json:"status,omitempty"`
+	Success  bool                     `json:"success,omitempty"`
+	Message  string                   `json:"message,omitempty"`
+	Data     []map[string]interface{} `json:"data"`
+	MetaData map[string]interface{}   `json:"meta_data,omitempty"`
+}
+
+func normalizeProjectProvider(provider string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(provider))
+	if normalized == "" {
+		return "", errors.New("provider cannot be empty")
+	}
+	return normalized, nil
+}
+
+// ProviderOrganizationReposRequest represents a provider organization repositories request.
+type ProviderOrganizationReposRequest struct {
+	OrgName string `json:"org_name"`
+}
+
+// ProviderBranchesRequest represents a provider repository branches request.
+type ProviderBranchesRequest struct {
+	RepoFullname string `json:"repo_fullname"`
+	Visibility   string `json:"visibility,omitempty"`
+}
+
+// ProviderRepoSearchRequest represents a provider repository search request.
+type ProviderRepoSearchRequest struct {
+	RepositoryName string `json:"repository_name"`
+	OrgName        string `json:"org_name"`
+}
+
+// LinkProviderRequest represents a provider link request.
+type LinkProviderRequest struct {
+	RedirectPath string `json:"redirectPath"`
+}
+
+// LinkProviderResponse represents a provider link response.
+type LinkProviderResponse struct {
+	RedirectURL string `json:"redirectUrl"`
+	Provider    string `json:"provider"`
+}
+
+// ListProviderOrganizations retrieves organizations for a VCS provider.
+func (s *ProjectService) ListProviderOrganizations(ctx context.Context, provider string) (*ProviderCollectionResponse, *http.Response, error) {
+	normalizedProvider, err := normalizeProjectProvider(provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	u := fmt.Sprintf("project/%s/organisations", normalizedProvider)
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	orgsResp := new(GitHubOrgsResponse)
+	orgsResp := new(ProviderCollectionResponse)
 	resp, err := s.client.Do(ctx, req, orgsResp)
 	if err != nil {
 		return nil, resp, err
@@ -1632,14 +1696,141 @@ func (s *ProjectService) GetGitHubOrgs(ctx context.Context) (*GitHubOrgsResponse
 	return orgsResp, resp, nil
 }
 
+// ListProviderOrganizationRepos retrieves repositories for a VCS provider organization or user profile.
+func (s *ProjectService) ListProviderOrganizationRepos(ctx context.Context, provider string, req *ProviderOrganizationReposRequest, opts *ProviderCollectionOptions) (*ProviderCollectionResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("provider organization repos request cannot be nil")
+	}
+
+	normalizedProvider, err := normalizeProjectProvider(provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	u := fmt.Sprintf("project/%s/organisations/repos", normalizedProvider)
+	if opts != nil {
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	reposResp := new(ProviderCollectionResponse)
+	resp, err := s.client.Do(ctx, httpReq, reposResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return reposResp, resp, nil
+}
+
+// ListProviderBranches retrieves branches for a repository in a VCS provider.
+func (s *ProjectService) ListProviderBranches(ctx context.Context, provider string, req *ProviderBranchesRequest, opts *ProviderBranchesOptions) (*ProviderCollectionResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("provider branches request cannot be nil")
+	}
+
+	normalizedProvider, err := normalizeProjectProvider(provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	u := fmt.Sprintf("project/%s/branches", normalizedProvider)
+	if opts != nil {
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	branchesResp := new(ProviderCollectionResponse)
+	resp, err := s.client.Do(ctx, httpReq, branchesResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return branchesResp, resp, nil
+}
+
+// SearchProviderRepositories searches repositories for a VCS provider organization or user profile.
+func (s *ProjectService) SearchProviderRepositories(ctx context.Context, provider string, req *ProviderRepoSearchRequest, opts *ProviderCollectionOptions) (*ProviderCollectionResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("provider repo search request cannot be nil")
+	}
+
+	normalizedProvider, err := normalizeProjectProvider(provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	u := fmt.Sprintf("project/%s/repo-search", normalizedProvider)
+	if opts != nil {
+		u, err = addOptions(u, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	searchResp := new(ProviderCollectionResponse)
+	resp, err := s.client.Do(ctx, httpReq, searchResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return searchResp, resp, nil
+}
+
+// GitHubOrgsResponse represents GitHub organizations response.
+type GitHubOrgsResponse struct {
+	Status  string `json:"status"`
+	Success bool   `json:"success,omitempty"`
+	Message string `json:"message"`
+	Data    struct {
+		Organizations []map[string]interface{} `json:"organizations"`
+	} `json:"data"`
+}
+
+// GetGitHubOrgs retrieves GitHub organizations.
+func (s *ProjectService) GetGitHubOrgs(ctx context.Context) (*GitHubOrgsResponse, *http.Response, error) {
+	orgsResp, resp, err := s.ListProviderOrganizations(ctx, "github")
+	if err != nil {
+		return nil, resp, err
+	}
+
+	result := &GitHubOrgsResponse{
+		Status:  orgsResp.Status,
+		Success: orgsResp.Success,
+		Message: orgsResp.Message,
+	}
+	result.Data.Organizations = orgsResp.Data
+	return result, resp, nil
+}
+
 // GitLabOrgReposRequest represents GitLab org repos request.
 type GitLabOrgReposRequest struct {
-	OrgID string `json:"org_id"`
+	OrgID   string `json:"org_id,omitempty"`
+	OrgName string `json:"org_name,omitempty"`
 }
 
 // GitLabReposResponse represents GitLab repos response.
 type GitLabReposResponse struct {
 	Status  string `json:"status"`
+	Success bool   `json:"success,omitempty"`
 	Message string `json:"message"`
 	Data    struct {
 		Repos []map[string]interface{} `json:"repos"`
@@ -1648,20 +1839,24 @@ type GitLabReposResponse struct {
 
 // GetGitLabOrgRepos retrieves GitLab organization repos.
 func (s *ProjectService) GetGitLabOrgRepos(ctx context.Context, req *GitLabOrgReposRequest) (*GitLabReposResponse, *http.Response, error) {
-	u := "project/gitlab/organisations/repos"
-
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
-	if err != nil {
-		return nil, nil, err
+	if req == nil {
+		return nil, nil, errors.New("gitlab org repos request cannot be nil")
 	}
 
-	reposResp := new(GitLabReposResponse)
-	resp, err := s.client.Do(ctx, httpReq, reposResp)
+	reposResp, resp, err := s.ListProviderOrganizationRepos(ctx, "gitlab", &ProviderOrganizationReposRequest{
+		OrgName: coalesceNonEmpty(req.OrgName, req.OrgID),
+	}, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return reposResp, resp, nil
+	result := &GitLabReposResponse{
+		Status:  reposResp.Status,
+		Success: reposResp.Success,
+		Message: reposResp.Message,
+	}
+	result.Data.Repos = reposResp.Data
+	return result, resp, nil
 }
 
 // MigrateProject migrates a project to different server/workspace.
@@ -1748,9 +1943,20 @@ type CheckDockerfileResponse struct {
 	} `json:"data"`
 }
 
-// CheckDockerfile checks if Dockerfile exists in repository.
-func (s *ProjectService) CheckDockerfile(ctx context.Context, provider, workspace, repo, branch string) (*CheckDockerfileResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/check-dockerfile/%s/%s/%s/%s", provider, workspace, repo, branch)
+// CheckRepositoryDockerfile checks if a Dockerfile exists in a repository branch.
+func (s *ProjectService) CheckRepositoryDockerfile(ctx context.Context, provider, owner, repo, branch string) (*CheckDockerfileResponse, *http.Response, error) {
+	normalizedProvider, err := normalizeProjectProvider(provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	u := fmt.Sprintf(
+		"project/check-dockerfile/%s/%s/%s/%s",
+		normalizedProvider,
+		url.PathEscape(strings.TrimSpace(owner)),
+		url.PathEscape(strings.TrimSpace(repo)),
+		url.PathEscape(strings.TrimSpace(branch)),
+	)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -1764,6 +1970,37 @@ func (s *ProjectService) CheckDockerfile(ctx context.Context, provider, workspac
 	}
 
 	return checkResp, resp, nil
+}
+
+// CheckDockerfile checks if Dockerfile exists in repository.
+func (s *ProjectService) CheckDockerfile(ctx context.Context, provider, workspace, repo, branch string) (*CheckDockerfileResponse, *http.Response, error) {
+	return s.CheckRepositoryDockerfile(ctx, provider, workspace, repo, branch)
+}
+
+// LinkProviderWithRedirect initiates linking a Git provider with a frontend redirect path.
+func (s *ProjectService) LinkProviderWithRedirect(ctx context.Context, provider string, req *LinkProviderRequest) (*LinkProviderResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("link provider request cannot be nil")
+	}
+
+	normalizedProvider, err := normalizeProjectProvider(provider)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	u := fmt.Sprintf("project/link/%s", normalizedProvider)
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	linkResp := new(LinkProviderResponse)
+	resp, err := s.client.Do(ctx, httpReq, linkResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return linkResp, resp, nil
 }
 
 // LinkProvider initiates linking a Git provider.
@@ -1891,12 +2128,15 @@ func (s *ProjectService) DeleteCustomDomain(ctx context.Context, projectUUID str
 
 // RepoSearchRequest represents repository search request.
 type RepoSearchRequest struct {
-	Query string `json:"query"`
+	Query          string `json:"query,omitempty"`
+	RepositoryName string `json:"repository_name,omitempty"`
+	OrgName        string `json:"org_name,omitempty"`
 }
 
 // RepoSearchResponse represents repository search response.
 type RepoSearchResponse struct {
 	Status  string `json:"status"`
+	Success bool   `json:"success,omitempty"`
 	Message string `json:"message"`
 	Data    struct {
 		Repos []map[string]interface{} `json:"repos"`
@@ -1905,20 +2145,25 @@ type RepoSearchResponse struct {
 
 // SearchRepos searches for repositories.
 func (s *ProjectService) SearchRepos(ctx context.Context, req *RepoSearchRequest) (*RepoSearchResponse, *http.Response, error) {
-	u := "project/github/repo-search"
-
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
-	if err != nil {
-		return nil, nil, err
+	if req == nil {
+		return nil, nil, errors.New("repo search request cannot be nil")
 	}
 
-	searchResp := new(RepoSearchResponse)
-	resp, err := s.client.Do(ctx, httpReq, searchResp)
+	searchResp, resp, err := s.SearchProviderRepositories(ctx, "github", &ProviderRepoSearchRequest{
+		RepositoryName: coalesceNonEmpty(req.RepositoryName, req.Query),
+		OrgName:        req.OrgName,
+	}, nil)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return searchResp, resp, nil
+	result := &RepoSearchResponse{
+		Status:  searchResp.Status,
+		Success: searchResp.Success,
+		Message: searchResp.Message,
+	}
+	result.Data.Repos = searchResp.Data
+	return result, resp, nil
 }
 
 // ProjectNamesResponse represents project names response.

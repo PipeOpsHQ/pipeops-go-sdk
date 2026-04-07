@@ -47,16 +47,24 @@ type AddOnResponse struct {
 // List lists all available add-ons.
 // ListAddOnsOptions specifies optional parameters for listing addons.
 type ListAddOnsOptions struct {
-	Limit int `url:"limit,omitempty"`
+	Page          int    `url:"page,omitempty"`
+	Limit         int    `url:"limit,omitempty"`
+	Size          int    `url:"size,omitempty"`
+	Category      string `url:"category,omitempty"`
+	Search        string `url:"s,omitempty"`
+	Featured      *bool  `url:"featured,omitempty"`
+	WorkspaceUUID string `url:"workspace,omitempty"`
 }
 
 // List lists all available add-ons.
 func (s *AddOnService) List(ctx context.Context, opts ...*ListAddOnsOptions) (*AddOnsResponse, *http.Response, error) {
 	u := "addons"
-
-	// Add query parameters if options provided
-	if len(opts) > 0 && opts[0] != nil && opts[0].Limit > 0 {
-		u = fmt.Sprintf("%s?limit=%d", u, opts[0].Limit)
+	if len(opts) > 0 && opts[0] != nil {
+		var err error
+		u, err = addOptions(u, opts[0])
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -71,6 +79,16 @@ func (s *AddOnService) List(ctx context.Context, opts ...*ListAddOnsOptions) (*A
 	}
 
 	return addOnsResp, resp, nil
+}
+
+// Search searches available add-ons using the same filters as List.
+func (s *AddOnService) Search(ctx context.Context, query string, opts ...*ListAddOnsOptions) (*AddOnsResponse, *http.Response, error) {
+	listOpts := &ListAddOnsOptions{Search: query}
+	if len(opts) > 0 && opts[0] != nil {
+		*listOpts = *opts[0]
+		listOpts.Search = query
+	}
+	return s.List(ctx, listOpts)
 }
 
 // Get fetches an add-on by UUID.
