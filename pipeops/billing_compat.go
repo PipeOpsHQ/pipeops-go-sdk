@@ -451,6 +451,83 @@ func (r *PlansResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (i *Invoice) UnmarshalJSON(data []byte) error {
+	type invoiceWire struct {
+		ID               jsonID          `json:"id,omitempty"`
+		IDAlt            jsonID          `json:"ID,omitempty"`
+		UUID             string          `json:"uuid,omitempty"`
+		UUIDAlt          string          `json:"UUID,omitempty"`
+		UIDAlt           string          `json:"UID,omitempty"`
+		InvoiceNumber    string          `json:"invoice_number,omitempty"`
+		InvoiceNumberAlt string          `json:"InvoiceNumber,omitempty"`
+		Amount           json.RawMessage `json:"amount,omitempty"`
+		AmountAlt        json.RawMessage `json:"Amount,omitempty"`
+		Currency         string          `json:"currency,omitempty"`
+		CurrencyAlt      string          `json:"Currency,omitempty"`
+		Status           string          `json:"status,omitempty"`
+		StatusAlt        string          `json:"Status,omitempty"`
+		DueDate          *Timestamp      `json:"due_date,omitempty"`
+		DueDateAlt       *Timestamp      `json:"DueDate,omitempty"`
+		Date             *Timestamp      `json:"date,omitempty"`
+		DateAlt          *Timestamp      `json:"Date,omitempty"`
+		PaidAt           *Timestamp      `json:"paid_at,omitempty"`
+		PaidAtAlt        *Timestamp      `json:"PaidAt,omitempty"`
+		CreatedAt        *Timestamp      `json:"created_at,omitempty"`
+		CreatedAtAlt     *Timestamp      `json:"CreatedAt,omitempty"`
+	}
+
+	var wire invoiceWire
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+
+	i.ID = coalesceNonEmpty(wire.ID.String(), wire.IDAlt.String(), wire.UIDAlt, wire.UUID, wire.UUIDAlt)
+	i.UUID = coalesceNonEmpty(wire.UUID, wire.UUIDAlt, wire.UIDAlt, i.ID)
+	i.InvoiceNumber = coalesceNonEmpty(wire.InvoiceNumber, wire.InvoiceNumberAlt)
+	if value, err := decodeFlexibleFloat(firstNonEmptyRaw(wire.Amount, wire.AmountAlt)); err == nil {
+		i.Amount = value
+	}
+	i.Currency = coalesceNonEmpty(wire.Currency, wire.CurrencyAlt)
+	i.Status = coalesceNonEmpty(wire.Status, wire.StatusAlt)
+	i.DueDate = firstTimestamp(wire.DueDate, wire.DueDateAlt, wire.Date, wire.DateAlt)
+	i.PaidAt = firstTimestamp(wire.PaidAt, wire.PaidAtAlt)
+	i.CreatedAt = firstTimestamp(wire.CreatedAt, wire.CreatedAtAlt)
+	return nil
+}
+
+func (r *InvoicesResponse) UnmarshalJSON(data []byte) error {
+	envelope, err := parseBillingEnvelope(data)
+	if err != nil {
+		return err
+	}
+
+	r.Status = envelopeStatus(envelope)
+	r.Message = envelope.Message
+	if isNullData(envelope.Data) {
+		return nil
+	}
+
+	var invoices []Invoice
+	if err := json.Unmarshal(envelope.Data, &invoices); err == nil {
+		r.Data.Invoices = invoices
+		return nil
+	}
+
+	var wrapped struct {
+		Invoices    []Invoice `json:"invoices,omitempty"`
+		InvoicesAlt []Invoice `json:"Invoices,omitempty"`
+	}
+	if err := json.Unmarshal(envelope.Data, &wrapped); err != nil {
+		return err
+	}
+	if len(wrapped.Invoices) > 0 {
+		r.Data.Invoices = wrapped.Invoices
+		return nil
+	}
+	r.Data.Invoices = wrapped.InvoicesAlt
+	return nil
+}
+
 func (r *BalanceResponse) UnmarshalJSON(data []byte) error {
 	envelope, err := parseBillingEnvelope(data)
 	if err != nil {

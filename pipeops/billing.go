@@ -342,14 +342,15 @@ func (s *BillingService) CancelSubscription(ctx context.Context, subscriptionUUI
 
 // Invoice represents a billing invoice.
 type Invoice struct {
-	ID        string     `json:"id,omitempty"`
-	UUID      string     `json:"uuid,omitempty"`
-	Amount    float64    `json:"amount,omitempty"`
-	Currency  string     `json:"currency,omitempty"`
-	Status    string     `json:"status,omitempty"`
-	DueDate   *Timestamp `json:"due_date,omitempty"`
-	PaidAt    *Timestamp `json:"paid_at,omitempty"`
-	CreatedAt *Timestamp `json:"created_at,omitempty"`
+	ID            string     `json:"id,omitempty"`
+	UUID          string     `json:"uuid,omitempty"`
+	InvoiceNumber string     `json:"invoice_number,omitempty"`
+	Amount        float64    `json:"amount,omitempty"`
+	Currency      string     `json:"currency,omitempty"`
+	Status        string     `json:"status,omitempty"`
+	DueDate       *Timestamp `json:"due_date,omitempty"`
+	PaidAt        *Timestamp `json:"paid_at,omitempty"`
+	CreatedAt     *Timestamp `json:"created_at,omitempty"`
 }
 
 // InvoicesResponse represents a list of invoices response.
@@ -363,7 +364,7 @@ type InvoicesResponse struct {
 
 // ListInvoices lists all invoices.
 func (s *BillingService) ListInvoices(ctx context.Context) (*InvoicesResponse, *http.Response, error) {
-	u := "billing/invoices"
+	u := "billing/history"
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
