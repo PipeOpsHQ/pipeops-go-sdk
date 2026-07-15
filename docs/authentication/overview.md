@@ -49,15 +49,27 @@ client.SetToken(token.AccessToken)
 
 **See:** [OAuth 2.0 Guide](oauth.md)
 
-### 3. Existing Token
+### 3. Service / API Token (recommended for automation)
 
-If you already have a valid token, use it directly:
+Create a workspace **service token** in the dashboard (Integrations → Service Tokens) with preset `platform` / scopes `api:full`, then:
+
+```go
+client.SetToken("sat_…")
+```
+
+The SDK sends `Authorization: Bearer <token>` on every request. Service tokens are workspace-scoped and do not require a browser session.
+
+**Use Case:** MCP, CI/CD, service accounts, long-running automation
+
+### 4. Existing session JWT
+
+If you already have a valid user session JWT, use it directly:
 
 ```go
 client.SetToken("your-existing-token")
 ```
 
-**Use Case:** Service accounts, automation scripts, token refresh flows
+**Use Case:** Token refresh flows after interactive login
 
 ## Token Management
 
