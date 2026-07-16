@@ -957,6 +957,10 @@ type projectRedeploySnapshot struct {
 	} `json:"data"`
 }
 
+type projectNetworkSettingsSnapshot struct {
+	Data json.RawMessage `json:"data"`
+}
+
 type projectRedeployProject struct {
 	Name             string          `json:"Name"`
 	Username         string          `json:"Username"`
@@ -1031,6 +1035,7 @@ type projectRedeployRequest struct {
 	Replicas           int                          `json:"replicas"`
 	BuildSettings      projectRedeployBuildSettings `json:"buildSettings"`
 	JobDetails         projectRedeployJobDetails    `json:"jobDetails"`
+	NetworkSettings    json.RawMessage              `json:"networkSettings,omitempty"`
 	Configuration      json.RawMessage              `json:"configuration"`
 	Kind               string                       `json:"kind,omitempty"`
 }
@@ -1072,6 +1077,12 @@ func (s *ProjectService) Deploy(ctx context.Context, projectUUID string, opts ..
 	if err != nil {
 		return nil, err
 	}
+	if !snapshot.Data.Project.Worker && !snapshot.Data.Project.Job {
+		payload.NetworkSettings, err = s.fetchProjectNetworkSettings(ctx, projectUUID, deployOpts.WorkspaceUUID)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	redeployPath := fmt.Sprintf("project/redeploy/%s", url.PathEscape(projectUUID))
 	redeployPath, err = addOptions(redeployPath, &projectRedeployQueryOptions{
@@ -1090,6 +1101,41 @@ func (s *ProjectService) Deploy(ctx context.Context, projectUUID string, opts ..
 
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
+}
+
+func (s *ProjectService) fetchProjectNetworkSettings(ctx context.Context, projectUUID, workspaceUUID string) (json.RawMessage, error) {
+	networkPath := fmt.Sprintf("project/settings/network/%s", url.PathEscape(projectUUID))
+	if workspaceUUID = strings.TrimSpace(workspaceUUID); workspaceUUID != "" {
+		var err error
+		networkPath, err = addOptions(networkPath, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err := s.client.NewRequest(http.MethodGet, networkPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot := new(projectNetworkSettingsSnapshot)
+	if _, err := s.client.Do(ctx, req, snapshot); err != nil {
+		return nil, err
+	}
+
+	raw := bytes.TrimSpace(snapshot.Data)
+	var networkSettings []json.RawMessage
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return nil, errors.New("project snapshot is missing network settings")
+	}
+	if err := json.Unmarshal(raw, &networkSettings); err != nil {
+		return nil, fmt.Errorf("decode project network settings: %w", err)
+	}
+	if len(networkSettings) == 0 {
+		return nil, errors.New("project snapshot is missing network settings")
+	}
+
+	return append(json.RawMessage(nil), raw...), nil
 }
 
 func buildProjectRedeployRequest(snapshot *projectRedeploySnapshot, workspaceUUID string) (*projectRedeployRequest, error) {
