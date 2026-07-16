@@ -8,6 +8,13 @@ import (
 	"testing"
 )
 
+func writeProjectDeployResponse(t *testing.T, w http.ResponseWriter, body string) {
+	t.Helper()
+	if _, err := w.Write([]byte(body)); err != nil {
+		t.Errorf("write response: %v", err)
+	}
+}
+
 func TestProjectServiceDeployUsesRedeployContract(t *testing.T) {
 	t.Parallel()
 
@@ -24,7 +31,7 @@ func TestProjectServiceDeployUsesRedeployContract(t *testing.T) {
 			if r.URL.Path != "/project/fetch/p1" {
 				t.Fatalf("fetch path = %s, want /project/fetch/p1", r.URL.Path)
 			}
-			_, _ = w.Write([]byte(`{
+			writeProjectDeployResponse(t, w, `{
 				"success": true,
 				"data": {
 					"project": {
@@ -58,7 +65,7 @@ func TestProjectServiceDeployUsesRedeployContract(t *testing.T) {
 						"CommitURL": "https://example.test/commit/abc123"
 					}
 				}
-			}`))
+			}`)
 		case 2:
 			if r.Method != http.MethodPost {
 				t.Fatalf("deploy method = %s, want POST", r.Method)
@@ -86,7 +93,8 @@ func TestProjectServiceDeployUsesRedeployContract(t *testing.T) {
 				"commitURL":          "https://example.test/commit/abc123",
 				"repositoryLanguage": "railpack",
 			} {
-				if got, _ := body[field].(string); got != want {
+				got, ok := body[field].(string)
+				if !ok || got != want {
 					t.Fatalf("%s = %q, want %q", field, got, want)
 				}
 			}
@@ -97,11 +105,12 @@ func TestProjectServiceDeployUsesRedeployContract(t *testing.T) {
 			if !ok {
 				t.Fatalf("buildSettings = %#v, want object", body["buildSettings"])
 			}
-			if got, _ := buildSettings["buildMethod"].(string); got != "railpack" {
+			got, ok := buildSettings["buildMethod"].(string)
+			if !ok || got != "railpack" {
 				t.Fatalf("buildMethod = %q, want railpack", got)
 			}
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = w.Write([]byte(`{"success":true,"message":"Deployment queued"}`))
+			writeProjectDeployResponse(t, w, `{"success":true,"message":"Deployment queued"}`)
 		default:
 			t.Fatalf("unexpected request %d: %s %s", requests, r.Method, r.URL.String())
 		}
@@ -141,7 +150,7 @@ func TestProjectServiceDeployScopesRequestsToWorkspace(t *testing.T) {
 			if r.URL.Path != "/project/fetch/p1" {
 				t.Fatalf("fetch path = %s, want /project/fetch/p1", r.URL.Path)
 			}
-			_, _ = w.Write([]byte(`{
+			writeProjectDeployResponse(t, w, `{
 				"data": {
 					"project": {
 						"Name": "ora-landing",
@@ -149,7 +158,7 @@ func TestProjectServiceDeployScopesRequestsToWorkspace(t *testing.T) {
 					},
 					"deployment": {}
 				}
-			}`))
+			}`)
 		case 2:
 			if r.URL.Path != "/project/redeploy/p1" {
 				t.Fatalf("deploy path = %s, want /project/redeploy/p1", r.URL.Path)
@@ -160,7 +169,7 @@ func TestProjectServiceDeployScopesRequestsToWorkspace(t *testing.T) {
 			if got := r.URL.Query().Get("no_cache"); got != "true" {
 				t.Fatalf("no_cache = %q, want true", got)
 			}
-			_, _ = w.Write([]byte(`{"success":true}`))
+			writeProjectDeployResponse(t, w, `{"success":true}`)
 		default:
 			t.Fatalf("unexpected request %d: %s", requests, r.URL.String())
 		}
@@ -190,7 +199,7 @@ func TestProjectServiceDeployRejectsIncompleteSnapshot(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		requests++
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"project":{"Name":"ora-landing"}}}`))
+		writeProjectDeployResponse(t, w, `{"data":{"project":{"Name":"ora-landing"}}}`)
 	}))
 	defer server.Close()
 
