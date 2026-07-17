@@ -34,8 +34,13 @@ type Project struct {
 	StartCommand  string     `json:"start_command,omitempty"`
 	Port          int        `json:"port,omitempty"`
 	Framework     string     `json:"framework,omitempty"`
-	CreatedAt     *Timestamp `json:"created_at,omitempty"`
-	UpdatedAt     *Timestamp `json:"updated_at,omitempty"`
+	// PublicURL is the cluster-type-aware public app URL (agent / PKS LB / NonPks).
+	// Populated from project/fetch as public_url.
+	PublicURL string `json:"public_url,omitempty"`
+	// CustomDomainName is the stored managed domain(s) assigned at create/migrate.
+	CustomDomainName string     `json:"CustomDomainName,omitempty"`
+	CreatedAt        *Timestamp `json:"created_at,omitempty"`
+	UpdatedAt        *Timestamp `json:"updated_at,omitempty"`
 }
 
 // ProjectsResponse represents a list of projects response.
