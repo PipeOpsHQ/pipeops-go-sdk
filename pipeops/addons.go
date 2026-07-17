@@ -180,12 +180,19 @@ type ListDeploymentsOptions struct {
 func (s *AddOnService) ListDeployments(ctx context.Context, opts ...*ListDeploymentsOptions) (*AddOnDeploymentsResponse, *http.Response, error) {
 	u := "addons/deployments/overview"
 
-	// Add query parameters if options provided
+	workspaceUUID := ""
 	if len(opts) > 0 && opts[0] != nil {
-		opt := opts[0]
-		if opt.WorkspaceUUID != "" {
-			u = u + "?workspace=" + opt.WorkspaceUUID
+		workspaceUUID = opts[0].WorkspaceUUID
+	}
+	// Overview requires workspace scoping; resolve default when callers omit it
+	// (team members / SA dual-auth). Prefer explicit opts over first workspace.
+	if workspaceUUID == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspaceUUID = ws
 		}
+	}
+	if workspaceUUID != "" {
+		u = u + "?workspace=" + workspaceUUID
 	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
@@ -410,8 +417,13 @@ type DeploymentOverviewResponse struct {
 }
 
 // GetDeploymentOverview retrieves deployment overview.
+// Prefer ListDeployments for typed deployment rows; this helper remains for
+// callers that expect the generic overview envelope.
 func (s *AddOnService) GetDeploymentOverview(ctx context.Context) (*DeploymentOverviewResponse, *http.Response, error) {
 	u := "addons/deployments/overview"
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil && workspaceUUID != "" {
+		u = u + "?workspace=" + workspaceUUID
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
