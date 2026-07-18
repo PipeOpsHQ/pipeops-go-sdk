@@ -626,9 +626,14 @@ func (s *ProjectService) Create(ctx context.Context, req *CreateProjectRequest) 
 
 	payload := *req
 	if strings.TrimSpace(payload.WorkspaceUUID) == "" {
-		if ws, _, err := firstWorkspaceUUID(ctx, s.client); err == nil {
-			payload.WorkspaceUUID = ws
+		ws, _, err := firstWorkspaceUUID(ctx, s.client)
+		if err != nil {
+			return nil, nil, fmt.Errorf("workspace_uuid is required: %w", err)
 		}
+		payload.WorkspaceUUID = ws
+	}
+	if strings.TrimSpace(payload.WorkspaceUUID) == "" {
+		return nil, nil, errors.New("workspace_uuid is required")
 	}
 	if payload.EnvVariables == nil {
 		payload.EnvVariables = []CreateProjectEnvVar{}
