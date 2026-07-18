@@ -20,20 +20,20 @@ type ProjectService struct {
 
 // Project represents a PipeOps project.
 type Project struct {
-	ID            jsonID     `json:"ID,omitempty"`
-	UUID          string     `json:"UUID,omitempty"`
-	Name          string     `json:"Name,omitempty"`
-	Description   string     `json:"Description,omitempty"`
-	Status        string     `json:"Status,omitempty"`
-	ServerID      string     `json:"server_id,omitempty"`
-	EnvironmentID string     `json:"environment_id,omitempty"`
-	WorkspaceID   string     `json:"workspace_id,omitempty"`
-	Repository    string     `json:"repository,omitempty"`
-	Branch        string     `json:"branch,omitempty"`
-	BuildCommand  string     `json:"build_command,omitempty"`
-	StartCommand  string     `json:"start_command,omitempty"`
-	Port          int        `json:"port,omitempty"`
-	Framework     string     `json:"framework,omitempty"`
+	ID            jsonID `json:"ID,omitempty"`
+	UUID          string `json:"UUID,omitempty"`
+	Name          string `json:"Name,omitempty"`
+	Description   string `json:"Description,omitempty"`
+	Status        string `json:"Status,omitempty"`
+	ServerID      string `json:"server_id,omitempty"`
+	EnvironmentID string `json:"environment_id,omitempty"`
+	WorkspaceID   string `json:"workspace_id,omitempty"`
+	Repository    string `json:"repository,omitempty"`
+	Branch        string `json:"branch,omitempty"`
+	BuildCommand  string `json:"build_command,omitempty"`
+	StartCommand  string `json:"start_command,omitempty"`
+	Port          int    `json:"port,omitempty"`
+	Framework     string `json:"framework,omitempty"`
 	// PublicURL is the cluster-type-aware public app URL (agent / PKS LB / NonPks).
 	// Populated from project/fetch as public_url.
 	PublicURL string `json:"public_url,omitempty"`
@@ -497,26 +497,145 @@ func (s *ProjectService) Get(ctx context.Context, projectUUID string, opts ...*P
 	return projectResp, resp, nil
 }
 
-// CreateProjectRequest represents a request to create a project.
-type CreateProjectRequest struct {
-	Name          string         `json:"name"`
-	Description   string         `json:"description,omitempty"`
-	ServerID      string         `json:"server_id"`
-	EnvironmentID string         `json:"environment_id"`
-	Repository    string         `json:"repository"`
-	Branch        string         `json:"branch"`
-	BuildCommand  string         `json:"build_command,omitempty"`
-	StartCommand  string         `json:"start_command,omitempty"`
-	Port          int            `json:"port,omitempty"`
-	Framework     string         `json:"framework,omitempty"`
-	EnvVars       map[string]any `json:"env_vars,omitempty"`
+// CreateProjectBuildSettings is the buildSettings object on POST /project/create
+// (controller models.BuildSettingsPublish + dashboard extras).
+type CreateProjectBuildSettings struct {
+	Type           string `json:"type,omitempty"`
+	BuildMethod    string `json:"buildMethod,omitempty"`
+	BuildCommand   string `json:"buildCommand,omitempty"`
+	RunCommand     string `json:"runCommand,omitempty"`
+	Worker         *bool  `json:"worker,omitempty"`
+	BuildPath      string `json:"buildPath,omitempty"`
+	BuilderHost    string `json:"builderHost,omitempty"`
+	BuilderID      string `json:"builderID,omitempty"`
+	BuildVersion   string `json:"buildVersion,omitempty"`
+	BuildDirectory string `json:"buildDirectory,omitempty"`
+	SkipBuild      bool   `json:"skipBuild,omitempty"`
+	SkipCommit     bool   `json:"skipCommit,omitempty"`
+	UseDockerImage bool   `json:"useDockerImage,omitempty"`
+	DockerImageURL string `json:"dockerImageURL,omitempty"`
+	DockerPath     string `json:"dockerPath,omitempty"`
+	NoCache        bool   `json:"noCache,omitempty"`
+	// Dashboard-only kind flags (ignored by strict schemas, accepted by API).
+	Function  bool `json:"function,omitempty"`
+	Terraform bool `json:"terraform,omitempty"`
 }
 
-// Create creates a new project.
-func (s *ProjectService) Create(ctx context.Context, req *CreateProjectRequest) (*ProjectResponse, *http.Response, error) {
-	u := "project/create"
+// CreateProjectJobDetails is jobDetails on create/redeploy.
+type CreateProjectJobDetails struct {
+	Enable         *bool  `json:"enable,omitempty"`
+	Suspended      *bool  `json:"suspended,omitempty"`
+	JobRunInterval string `json:"JobRunInterval,omitempty"`
+	JobRunCommand  string `json:"JobRunCommand,omitempty"`
+}
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+// CreateProjectNetworkSetting is one networkSettings entry (dashboard uses capital keys).
+type CreateProjectNetworkSetting struct {
+	Port     int32                    `json:"Port"`
+	Protocol string                   `json:"Protocol,omitempty"`
+	Domains  []CreateProjectDomainRef `json:"Domains,omitempty"`
+	Public   *bool                    `json:"Public,omitempty"`
+	Default  *bool                    `json:"Default,omitempty"`
+	EnvPort  bool                     `json:"EnvPort,omitempty"`
+}
+
+// CreateProjectDomainRef is a domain nested under networkSettings.
+type CreateProjectDomainRef struct {
+	Domain           string `json:"Domain,omitempty"`
+	DomainName       string `json:"domain,omitempty"`
+	PipeopsGenerated bool   `json:"PipeopsGenerated,omitempty"`
+}
+
+// CreateProjectEnvVar is envVariables[] on create (key/value).
+type CreateProjectEnvVar struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// CreateProjectMemory is memory sizing on create.
+type CreateProjectMemory struct {
+	Value float64 `json:"Value,omitempty"`
+	Unit  string  `json:"Unit,omitempty"`
+}
+
+// CreateProjectFunctionSpec is function_spec when kind=function.
+type CreateProjectFunctionSpec struct {
+	SourceURL string `json:"source_url,omitempty"`
+	Runtime   string `json:"runtime,omitempty"`
+	Handler   string `json:"handler,omitempty"`
+}
+
+// CreateProjectGitOpsSettings is gitopsSettings when projectType is gitops*.
+type CreateProjectGitOpsSettings struct {
+	ManifestPath string `json:"manifestPath,omitempty"`
+	ManifestType string `json:"manifestType,omitempty"` // pipeops | kubernetes
+	SyncPolicy   string `json:"syncPolicy,omitempty"`   // manual | auto | webhook
+	AutoPrune    bool   `json:"autoPrune,omitempty"`
+	SelfHeal     bool   `json:"selfHeal,omitempty"`
+}
+
+// CreateProjectRequest is POST /project/create body.
+//
+// Field names match the control-plane types.CreateProject / dashboard publish
+// payload (clusterUUID, environment_uuid, buildSettings, envVariables, …).
+// The previous server_id/environment_id/build_command shape never matched the API.
+type CreateProjectRequest struct {
+	Name               string                        `json:"name"`
+	Username           string                        `json:"username,omitempty"`
+	Source             string                        `json:"source,omitempty"` // github | gitlab | bitbucket | image
+	Repository         string                        `json:"repository,omitempty"`
+	CommitURL          string                        `json:"commitURL,omitempty"`
+	CommitSha          string                        `json:"commitSha,omitempty"`
+	RepositoryLanguage string                        `json:"repositoryLanguage,omitempty"`
+	RawLanguage        string                        `json:"rawLanguage,omitempty"`
+	Framework          string                        `json:"framework,omitempty"`
+	GitlabID           string                        `json:"gitlabID,omitempty"`
+	Branch             string                        `json:"branch,omitempty"`
+	EnvironmentUUID    string                        `json:"environment_uuid,omitempty"`
+	Environment        string                        `json:"environment,omitempty"` // env name/slug, e.g. development
+	CustomDomainName   string                        `json:"customDomainName,omitempty"`
+	ClusterUUID        string                        `json:"clusterUUID"`
+	ClusterVersion     string                        `json:"clusterVersion,omitempty"`
+	EnvVariables       []CreateProjectEnvVar         `json:"envVariables"`
+	BuildSettings      CreateProjectBuildSettings    `json:"buildSettings"`
+	NetworkSettings    []CreateProjectNetworkSetting `json:"networkSettings,omitempty"`
+	PostStart          string                        `json:"postStart,omitempty"`
+	WorkerRunCommand   string                        `json:"workerRunCommand,omitempty"`
+	JobDetails         CreateProjectJobDetails       `json:"jobDetails,omitempty"`
+	WorkspaceUUID      string                        `json:"workspace_uuid"`
+	Replicas           int                           `json:"replicas,omitempty"`
+	VCPU               float32                       `json:"vcpu,omitempty"`
+	Memory             *CreateProjectMemory          `json:"memory,omitempty"`
+	Preset             string                        `json:"preset,omitempty"`
+	Configuration      json.RawMessage               `json:"configuration,omitempty"`
+	ZDD                bool                          `json:"zdd,omitempty"`
+	HA                 bool                          `json:"ha,omitempty"`
+	Kind               string                        `json:"kind,omitempty"` // application | function | database | terraform
+	FunctionSpec       *CreateProjectFunctionSpec    `json:"function_spec,omitempty"`
+	ProjectType        string                        `json:"projectType,omitempty"` // standard | gitops | gitops-k8s
+	GitOpsSettings     *CreateProjectGitOpsSettings  `json:"gitopsSettings,omitempty"`
+}
+
+// Create creates a new project via POST /project/create.
+// If WorkspaceUUID is empty, the first workspace UUID is filled when available.
+// EnvVariables is sent as [] when nil so the API receives a JSON array.
+func (s *ProjectService) Create(ctx context.Context, req *CreateProjectRequest) (*ProjectResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("create project request cannot be nil")
+	}
+
+	payload := *req
+	if strings.TrimSpace(payload.WorkspaceUUID) == "" {
+		if ws, _, err := firstWorkspaceUUID(ctx, s.client); err == nil {
+			payload.WorkspaceUUID = ws
+		}
+	}
+	if payload.EnvVariables == nil {
+		payload.EnvVariables = []CreateProjectEnvVar{}
+	}
+
+	u := "project/create"
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, &payload)
 	if err != nil {
 		return nil, nil, err
 	}

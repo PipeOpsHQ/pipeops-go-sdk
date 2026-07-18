@@ -113,10 +113,24 @@ projects, _, _ := client.Projects.List(ctx, nil)
 project, _, _ := client.Projects.Get(ctx, "project-uuid")
 
 // Create project
+worker := false
 newProject, _, _ := client.Projects.Create(ctx, &pipeops.CreateProjectRequest{
-    Name:       "My App",
-    ServerID:   "server-uuid",
-    Repository: "https://github.com/user/repo",
+    Name:            "My App",
+    Username:        "user",
+    Source:          "github",
+    Repository:      "https://github.com/user/repo",
+    Branch:          "main",
+    ClusterUUID:     "server-uuid",
+    EnvironmentUUID: "environment-uuid",
+    Environment:     "development",
+    WorkspaceUUID:   "workspace-uuid",
+    BuildSettings: pipeops.CreateProjectBuildSettings{
+        BuildMethod: "nodejs",
+        RunCommand:  "npm start",
+        Worker:      &worker,
+    },
+    NetworkSettings: []pipeops.CreateProjectNetworkSetting{{Port: 3000, Protocol: "HTTP"}},
+    EnvVariables:    []pipeops.CreateProjectEnvVar{},
 })
 ```
 

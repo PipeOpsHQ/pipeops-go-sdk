@@ -42,12 +42,30 @@ func TestProjectService_UsesPostmanRoutes(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/project/create",
 			run: func(ctx context.Context, client *Client) error {
+				worker := false
 				_, _, err := client.Projects.Create(ctx, &CreateProjectRequest{
-					Name:          "test",
-					ServerID:      "s1",
-					EnvironmentID: "e1",
-					Repository:    "https://example.com/repo.git",
-					Branch:        "main",
+					Name:               "test",
+					Username:           "acme",
+					Source:             "github",
+					Repository:         "https://example.com/repo.git",
+					Branch:             "main",
+					CommitURL:          "https://example.com/repo/commit/sha",
+					CommitSha:          "sha",
+					RepositoryLanguage: "nodejs",
+					Environment:        "development",
+					EnvironmentUUID:    "e1",
+					ClusterUUID:        "s1",
+					WorkspaceUUID:      "w1",
+					BuildSettings: CreateProjectBuildSettings{
+						BuildMethod:  "nodejs",
+						BuildCommand: "npm run build",
+						RunCommand:   "npm start",
+						Worker:       &worker,
+					},
+					NetworkSettings: []CreateProjectNetworkSetting{
+						{Port: 3000, Protocol: "HTTP"},
+					},
+					EnvVariables: []CreateProjectEnvVar{},
 				})
 				return err
 			},

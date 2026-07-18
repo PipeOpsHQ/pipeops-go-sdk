@@ -285,15 +285,25 @@ func main() {
     ctx := context.Background()
     
     // Create a new project
+    worker := false
     project, _, err := client.Projects.Create(ctx, &pipeops.CreateProjectRequest{
-        Name:          "My Web App",
-        ServerID:      "server-uuid",
-        EnvironmentID: "env-uuid",
-        Repository:    "https://github.com/user/webapp",
-        Branch:        "main",
-        BuildCommand:  "npm run build",
-        StartCommand:  "npm start",
-        Port:          3000,
+        Name:            "My Web App",
+        Username:        "user",
+        Source:          "github",
+        Repository:      "https://github.com/user/webapp",
+        Branch:          "main",
+        ClusterUUID:     "server-uuid",
+        EnvironmentUUID: "env-uuid",
+        Environment:     "development",
+        WorkspaceUUID:   "workspace-uuid",
+        BuildSettings: pipeops.CreateProjectBuildSettings{
+            BuildMethod:  "nodejs",
+            BuildCommand: "npm run build",
+            RunCommand:   "npm start",
+            Worker:       &worker,
+        },
+        NetworkSettings: []pipeops.CreateProjectNetworkSetting{{Port: 3000, Protocol: "HTTP"}},
+        EnvVariables:    []pipeops.CreateProjectEnvVar{},
     })
     if err != nil {
         log.Fatalf("Failed to create project: %v", err)
