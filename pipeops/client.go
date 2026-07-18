@@ -116,6 +116,8 @@ type Client struct {
 	ServiceTokens       *ServiceTokenService
 	ExternalRegistries  *ExternalRegistryService
 	Volumes             *VolumeService
+	GitOps              *GitOpsService
+	ProjectGroups       *ProjectGroupService
 }
 
 // newHTTPClient creates a properly configured HTTP client for production use.
@@ -248,6 +250,8 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	c.ServiceTokens = &ServiceTokenService{client: c}
 	c.ExternalRegistries = &ExternalRegistryService{client: c}
 	c.Volumes = &VolumeService{client: c}
+	c.GitOps = &GitOpsService{client: c}
+	c.ProjectGroups = &ProjectGroupService{client: c}
 
 	return c, nil
 }

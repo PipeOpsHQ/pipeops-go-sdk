@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Real addon backup export methods on `AddOnService`: `ListAddonBackups`, `StartAddonBackupExport`, `GetAddonBackupExport`, `DownloadAddonBackupExport`
 - Path contract tests for volumes and addon backups
 - `docs/API_COVERAGE_PLAN.md` cascade plan (SDK → MCP → CLI)
+- `GitOpsService` (`Client.GitOps`) for GitOps application CRUD, sync, sync-status, diff, and history against `/api/v1/gitops/applications`
+- `ProjectGroupService` (`Client.ProjectGroups`) for project group plane P1 APIs against `/project-groups` (list/get/create/update/delete, members, topology, shared env, connect, redeploy, resolve, candidates)
+- Path contract tests for GitOps and Project Groups services
 
 ### Fixed
 - `Project.CustomDomainName` accepts both string and string-array JSON (project/fetch splits domains into an array).
