@@ -128,7 +128,10 @@ func TestProjectService_Create_ControllerContract(t *testing.T) {
 	if !ok || len(nets) != 1 {
 		t.Fatalf("networkSettings = %+v", gotBody["networkSettings"])
 	}
-	net0 := nets[0].(map[string]interface{})
+	net0, ok := nets[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("network entry type = %T", nets[0])
+	}
 	if net0["Port"] != float64(3000) || net0["Protocol"] != "HTTP" {
 		t.Fatalf("network entry = %+v", net0)
 	}
