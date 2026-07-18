@@ -24,18 +24,23 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodPost {
 				// List also hits this path with GET; only assert POST here via method branch.
 				if r.Method == http.MethodGet {
-					_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					if err := json.NewEncoder(w).Encode(map[string]interface{}{
 						"success": true,
 						"data": map[string]interface{}{
 							"items": []map[string]string{{"uuid": "go-1", "name": "app"}},
 							"total": 1, "page": 1, "limit": 20, "total_pages": 1,
 						},
-					})
+					}); err != nil {
+						t.Fatal(err)
+					}
 					return
 				}
 				t.Fatalf("method = %s", r.Method)
 			}
-			body, _ := io.ReadAll(r.Body)
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			var req map[string]interface{}
 			if err := json.Unmarshal(body, &req); err != nil {
 				t.Fatalf("body: %v", err)
@@ -43,11 +48,13 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if req["name"] != "my-app" || req["repo_url"] != "https://github.com/acme/app" {
 				t.Fatalf("body = %s", body)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"message": "created",
 				"data":    map[string]string{"uuid": "go-1", "name": "my-app", "repo_url": "https://github.com/acme/app"},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		resp, _, err := client.GitOps.Create(context.Background(), &CreateGitOpsConfigRequest{
@@ -80,10 +87,12 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data":    map[string]string{"uuid": "go-2", "name": "other"},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.GitOps.Get(context.Background(), "go-2")
 		if err != nil {
@@ -99,10 +108,12 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodPut {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data":    map[string]string{"uuid": "go-3", "branch": "develop"},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.GitOps.Update(context.Background(), "go-3", &UpdateGitOpsConfigRequest{
 			Branch: "develop",
@@ -120,10 +131,12 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodDelete {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"message": "deleted",
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		if _, err := client.GitOps.Delete(context.Background(), "go-4"); err != nil {
 			t.Fatal(err)
@@ -136,10 +149,12 @@ func TestGitOpsServicePaths(t *testing.T) {
 				t.Fatalf("method = %s", r.Method)
 			}
 			w.WriteHeader(http.StatusAccepted)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data":    map[string]interface{}{"status": "Syncing", "revision": "abc", "dry_run": false},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.GitOps.TriggerSync(context.Background(), "go-5", &TriggerGitOpsSyncRequest{
 			Revision: "abc",
@@ -157,13 +172,15 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]string{
 					"sync_status":   "Synced",
 					"health_status": "Healthy",
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.GitOps.GetSyncStatus(context.Background(), "go-6")
 		if err != nil {
@@ -179,14 +196,16 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"current_commit": "aaa",
 					"target_commit":  "bbb",
 					"sync_required":  true,
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.GitOps.GetDiff(context.Background(), "go-7")
 		if err != nil {
@@ -205,7 +224,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.URL.Query().Get("page") != "2" {
 				t.Fatalf("page = %q", r.URL.Query().Get("page"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"items": []map[string]interface{}{
@@ -213,7 +232,9 @@ func TestGitOpsServicePaths(t *testing.T) {
 					},
 					"total": 1, "page": 2, "limit": 10, "total_pages": 1,
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.GitOps.GetHistory(context.Background(), "go-8", &GitOpsListOptions{Page: 2, Limit: 10})
 		if err != nil {

@@ -21,10 +21,12 @@ func TestProjectGroupServicePaths(t *testing.T) {
 
 	// Stub workspace list so firstWorkspaceUUID succeeds when opts omit workspace.
 	mux.HandleFunc("/workspace", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"data":    []map[string]string{{"UUID": "ws-1", "uuid": "ws-1"}},
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	ws := &ProjectGroupWorkspaceOptions{WorkspaceUUID: "ws-1"}
@@ -32,9 +34,14 @@ func TestProjectGroupServicePaths(t *testing.T) {
 	t.Run("List", func(t *testing.T) {
 		mux.HandleFunc("/project-groups", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPost {
-				body, _ := io.ReadAll(r.Body)
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
 				var req map[string]interface{}
-				_ = json.Unmarshal(body, &req)
+				if err := json.Unmarshal(body, &req); err != nil {
+					t.Fatal(err)
+				}
 				if req["name"] != "plane" {
 					t.Fatalf("create body = %s", body)
 				}
@@ -42,10 +49,12 @@ func TestProjectGroupServicePaths(t *testing.T) {
 					t.Fatalf("workspace = %s", r.URL.RawQuery)
 				}
 				w.WriteHeader(http.StatusCreated)
-				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				if err := json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": true,
 					"data":    map[string]string{"uuid": "pg-1", "name": "plane"},
-				})
+				}); err != nil {
+					t.Fatal(err)
+				}
 				return
 			}
 			if r.Method != http.MethodGet {
@@ -57,13 +66,15 @@ func TestProjectGroupServicePaths(t *testing.T) {
 			if r.URL.Query().Get("limit") != "25" {
 				t.Fatalf("limit = %q", r.URL.Query().Get("limit"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"groups": []map[string]string{{"uuid": "pg-1", "name": "plane"}},
 					"total":  1, "limit": 25, "offset": 0,
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		list, _, err := client.ProjectGroups.List(context.Background(), &ProjectGroupListOptions{
@@ -93,20 +104,26 @@ func TestProjectGroupServicePaths(t *testing.T) {
 			}
 			switch r.Method {
 			case http.MethodGet:
-				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				if err := json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": true,
 					"data":    map[string]string{"uuid": "pg-2", "name": "g2"},
-				})
+				}); err != nil {
+					t.Fatal(err)
+				}
 			case http.MethodPatch:
-				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				if err := json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": true,
 					"data":    map[string]string{"uuid": "pg-2", "name": "renamed"},
-				})
+				}); err != nil {
+					t.Fatal(err)
+				}
 			case http.MethodDelete:
-				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				if err := json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": true,
 					"message": "deleted",
-				})
+				}); err != nil {
+					t.Fatal(err)
+				}
 			default:
 				t.Fatalf("method = %s", r.Method)
 			}
@@ -139,13 +156,15 @@ func TestProjectGroupServicePaths(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"attached_member_uuids": []string{"proj-1"},
 					"group_uuid":            "pg-3",
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		mux.HandleFunc("/project-groups/pg-3/members/project/proj-1", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodDelete {
@@ -154,7 +173,9 @@ func TestProjectGroupServicePaths(t *testing.T) {
 			if r.URL.Query().Get("workspace_uuid") != "ws-1" {
 				t.Fatalf("workspace = %s", r.URL.RawQuery)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "detached"})
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "detached"}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		att, _, err := client.ProjectGroups.AttachMember(context.Background(), "pg-3", &AttachProjectGroupMemberRequest{
@@ -177,57 +198,67 @@ func TestProjectGroupServicePaths(t *testing.T) {
 
 	t.Run("TopologyEnvConnectRedeploy", func(t *testing.T) {
 		mux.HandleFunc("/project-groups/pg-4/topology", func(w http.ResponseWriter, r *http.Request) {
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"group": map[string]string{"uuid": "pg-4"},
 					"nodes": []map[string]string{{"member_uuid": "proj-1", "name": "api"}},
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		mux.HandleFunc("/project-groups/pg-4/env", func(w http.ResponseWriter, r *http.Request) {
 			vars := []map[string]string{{"key": "FOO", "value": "bar"}}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data":    map[string]interface{}{"variables": vars},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		mux.HandleFunc("/project-groups/pg-4/env/inject", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"written_keys":     []string{"FOO"},
 					"projects_touched": []string{"proj-1"},
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		mux.HandleFunc("/project-groups/pg-4/connections", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"written_keys": []string{"DATABASE_URL"},
 					"message":      "connected",
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		mux.HandleFunc("/project-groups/pg-4/redeploy-apps", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"queued":  []string{"proj-1"},
 					"failed":  []string{},
 					"message": "Queued redeploy for 1 app(s)",
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		topo, _, err := client.ProjectGroups.GetTopology(context.Background(), "pg-4", ws)
@@ -293,26 +324,30 @@ func TestProjectGroupServicePaths(t *testing.T) {
 			if r.URL.Query().Get("member_type") != "project" || r.URL.Query().Get("member_uuid") != "proj-9" {
 				t.Fatalf("query = %s", r.URL.RawQuery)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]string{
 					"group_uuid":  "pg-9",
 					"member_type": "project",
 					"member_uuid": "proj-9",
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		mux.HandleFunc("/project-groups/candidates", func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Query().Get("group_uuid") != "pg-9" {
 				t.Fatalf("group_uuid = %q", r.URL.Query().Get("group_uuid"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"projects": []map[string]string{{"member_uuid": "proj-a", "name": "api"}},
 					"addons":   []map[string]string{{"member_uuid": "addon-a", "name": "pg"}},
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		res, _, err := client.ProjectGroups.ResolveMember(context.Background(), &ProjectGroupResolveOptions{
