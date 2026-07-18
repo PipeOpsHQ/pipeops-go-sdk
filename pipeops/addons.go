@@ -511,6 +511,139 @@ func (s *AddOnService) AddDomain(ctx context.Context, addonUUID string, req *Dom
 	return resp, err
 }
 
+// --- Addon backup export (data-layer addons) ---
+// Controller: GET/POST /addons/deployments/:id/backups*
+
+// AddonBackupSnapshot is one snapshot row in the Backups tab.
+type AddonBackupSnapshot struct {
+	ID             string   `json:"id,omitempty"`
+	Name           string   `json:"name,omitempty"`
+	Time           string   `json:"time,omitempty"`
+	TotalSizeBytes int64    `json:"total_size_bytes,omitempty"`
+	Useful         bool     `json:"useful,omitempty"`
+	SizeUnknown    bool     `json:"size_unknown,omitempty"`
+	TypeChip       string   `json:"type_chip,omitempty"`
+	Paths          []string `json:"paths,omitempty"`
+	Warning        string   `json:"warning,omitempty"`
+	Hostname       string   `json:"hostname,omitempty"`
+}
+
+// AddonBackupListResponse is GET /addons/deployments/:id/backups.
+type AddonBackupListResponse struct {
+	Success bool   `json:"success,omitempty"`
+	Message string `json:"message,omitempty"`
+	Data    struct {
+		AddonUID   string                `json:"addon_uid,omitempty"`
+		Namespace  string                `json:"namespace,omitempty"`
+		ServerCode string                `json:"server_code,omitempty"`
+		Snapshots  []AddonBackupSnapshot `json:"snapshots,omitempty"`
+	} `json:"data"`
+}
+
+// AddonBackupExportRequest is POST /addons/deployments/:id/backups/export body.
+type AddonBackupExportRequest struct {
+	SnapshotID string `json:"snapshot_id"`
+	Path       string `json:"path,omitempty"`
+	Format     string `json:"format,omitempty"` // auto | sql | rdb | archive
+}
+
+// AddonBackupExportStatus is create/get export status.
+type AddonBackupExportStatus struct {
+	ExportID     string `json:"export_id,omitempty"`
+	Status       string `json:"status,omitempty"`
+	DownloadURL  string `json:"download_url,omitempty"`
+	Filename     string `json:"filename,omitempty"`
+	ContentType  string `json:"content_type,omitempty"`
+	SizeBytes    int64  `json:"size_bytes,omitempty"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	SnapshotID   string `json:"snapshot_id,omitempty"`
+	Path         string `json:"path,omitempty"`
+	CreatedAt    string `json:"created_at,omitempty"`
+}
+
+// AddonBackupExportResponse wraps export status.
+type AddonBackupExportResponse struct {
+	Success bool                    `json:"success,omitempty"`
+	Message string                  `json:"message,omitempty"`
+	Data    AddonBackupExportStatus `json:"data"`
+}
+
+// ListAddonBackups lists snapshots for an addon deployment.
+// GET /addons/deployments/:id/backups
+func (s *AddOnService) ListAddonBackups(ctx context.Context, deploymentUID string) (*AddonBackupListResponse, *http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s/backups", deploymentUID)
+	u = withAddonWorkspaceQuery(ctx, s.client, u)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(AddonBackupListResponse)
+	resp, err := s.client.Do(ctx, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
+// StartAddonBackupExport starts an async backup export for a snapshot path.
+// POST /addons/deployments/:id/backups/export
+func (s *AddOnService) StartAddonBackupExport(ctx context.Context, deploymentUID string, body *AddonBackupExportRequest) (*AddonBackupExportResponse, *http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s/backups/export", deploymentUID)
+	u = withAddonWorkspaceQuery(ctx, s.client, u)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, body)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(AddonBackupExportResponse)
+	resp, err := s.client.Do(ctx, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
+// GetAddonBackupExport polls export status.
+// GET /addons/deployments/:id/backups/exports/:export_id
+func (s *AddOnService) GetAddonBackupExport(ctx context.Context, deploymentUID, exportID string) (*AddonBackupExportResponse, *http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s/backups/exports/%s", deploymentUID, exportID)
+	u = withAddonWorkspaceQuery(ctx, s.client, u)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(AddonBackupExportResponse)
+	resp, err := s.client.Do(ctx, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
+// DownloadAddonBackupExport returns the download response (follow DownloadURL or stream).
+// GET /addons/deployments/:id/backups/exports/:export_id/download
+func (s *AddOnService) DownloadAddonBackupExport(ctx context.Context, deploymentUID, exportID string) (*http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s/backups/exports/%s/download", deploymentUID, exportID)
+	u = withAddonWorkspaceQuery(ctx, s.client, u)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	return s.client.Do(ctx, req, nil)
+}
+
+func withAddonWorkspaceQuery(ctx context.Context, client *Client, path string) string {
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, client); wsErr == nil {
+		if withWorkspace, err := addOptions(path, &addonWorkspaceOptions{Workspace: workspaceUUID}); err == nil {
+			return withWorkspace
+		}
+	}
+	return path
+}
+
 type addonWorkspaceOptions struct {
 	Workspace string `url:"workspace"`
 }

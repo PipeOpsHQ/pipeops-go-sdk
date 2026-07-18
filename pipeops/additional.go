@@ -691,12 +691,24 @@ func (s *HealthCheckService) CheckDatabaseHealth(ctx context.Context) (*HealthCh
 	return healthResp, resp, nil
 }
 
-// BackupService handles backup and restore related methods.
+// BackupService is a legacy alias surface.
+//
+// Deprecated: The previous paths (backups/projects/..., backups/:id/restore)
+// do not exist on the control plane. Prefer AddOnService backup-export methods:
+//
+//	AddOns.ListAddonBackups
+//	AddOns.StartAddonBackupExport
+//	AddOns.GetAddonBackupExport
+//	AddOns.DownloadAddonBackupExport
+//
+// and VolumeService for workspace PVC export.
 type BackupService struct {
 	client *Client
 }
 
-// Backup represents a backup.
+// Backup is retained for binary compatibility with older callers.
+//
+// Deprecated: use AddOnService backup DTOs instead.
 type Backup struct {
 	ID        string     `json:"id,omitempty"`
 	UUID      string     `json:"uuid,omitempty"`
@@ -707,7 +719,9 @@ type Backup struct {
 	CreatedAt *Timestamp `json:"created_at,omitempty"`
 }
 
-// BackupsResponse represents backups response.
+// BackupsResponse is retained for binary compatibility.
+//
+// Deprecated: use AddOnService backup list response types.
 type BackupsResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
@@ -716,61 +730,37 @@ type BackupsResponse struct {
 	} `json:"data"`
 }
 
-// CreateBackup creates a new backup.
+// errDeprecatedBackupAPI is returned by legacy BackupService methods.
+var errDeprecatedBackupAPI = fmt.Errorf(
+	"pipeops: BackupService paths are retired; use AddOns.ListAddonBackups / StartAddonBackupExport (addons/deployments/:id/backups*) or Volumes export APIs",
+)
+
+// CreateBackup is retired.
+//
+// Deprecated: wrong path; use AddOns.StartAddonBackupExport.
 func (s *BackupService) CreateBackup(ctx context.Context, projectUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("backups/projects/%s", projectUUID)
-
-	req, err := s.client.NewRequest(http.MethodPost, u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.client.Do(ctx, req, nil)
-	return resp, err
+	return nil, errDeprecatedBackupAPI
 }
 
-// ListBackups lists all backups for a project.
+// ListBackups is retired.
+//
+// Deprecated: wrong path; use AddOns.ListAddonBackups.
 func (s *BackupService) ListBackups(ctx context.Context, projectUUID string) (*BackupsResponse, *http.Response, error) {
-	u := fmt.Sprintf("backups/projects/%s", projectUUID)
-
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	backupsResp := new(BackupsResponse)
-	resp, err := s.client.Do(ctx, req, backupsResp)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return backupsResp, resp, nil
+	return nil, nil, errDeprecatedBackupAPI
 }
 
-// RestoreBackup restores a backup.
+// RestoreBackup is retired (no control-plane restore endpoint of this shape).
+//
+// Deprecated: use addon/volume recovery APIs instead.
 func (s *BackupService) RestoreBackup(ctx context.Context, backupUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("backups/%s/restore", backupUUID)
-
-	req, err := s.client.NewRequest(http.MethodPost, u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.client.Do(ctx, req, nil)
-	return resp, err
+	return nil, errDeprecatedBackupAPI
 }
 
-// DeleteBackup deletes a backup.
+// DeleteBackup is retired.
+//
+// Deprecated: no matching control-plane route.
 func (s *BackupService) DeleteBackup(ctx context.Context, backupUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("backups/%s", backupUUID)
-
-	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.client.Do(ctx, req, nil)
-	return resp, err
+	return nil, errDeprecatedBackupAPI
 }
 
 // SecurityScanService handles security scanning related methods.

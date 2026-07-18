@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `ApplyCreateProjectDefaults` — prefer-client create defaults (PORT from network only if missing, source/environment/protocol/worker gaps only)
+- `VolumeService` (`Client.Volumes`) for workspace PVC list/get/remount/delete/export against `/volumes`
+- Real addon backup export methods on `AddOnService`: `ListAddonBackups`, `StartAddonBackupExport`, `GetAddonBackupExport`, `DownloadAddonBackupExport`
+- Path contract tests for volumes and addon backups
+- `docs/API_COVERAGE_PLAN.md` cascade plan (SDK → MCP → CLI)
 
 ### Fixed
 - `Project.CustomDomainName` accepts both string and string-array JSON (project/fetch splits domains into an array).
@@ -16,14 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `CreateProjectRequest` now matches control-plane `POST /project/create` (clusterUUID, environment_uuid, buildSettings, envVariables, networkSettings, workspace_uuid, …). Legacy `server_id` / `environment_id` / `build_command` fields are removed.
 - `Project.CustomDomainName` type is `FlexibleCSVString` (string-compatible via `.String()` / `.First()`).
-
-### Added
 - GitHub Actions CI workflow for automated testing and linting
 - GitHub Actions release workflow for automated releases
 - GoReleaser configuration for release management
 - Makefile for common development tasks
 - golangci-lint configuration for code quality
 - Release process documentation
+
+### Changed
+- `BackupService` methods now return a clear deprecation error; prefer addon backup export and volume export APIs
 
 ## [0.1.0] - Initial Release
 
