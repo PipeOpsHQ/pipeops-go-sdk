@@ -59,20 +59,29 @@ fmt.Printf("Repository: %s\n", project.Data.Project.Repository)
 Create a new project:
 
 ```go
+worker := false
 newProject, _, err := client.Projects.Create(ctx, &pipeops.CreateProjectRequest{
-    Name:          "My Application",
-    Description:   "Production application",
-    ServerID:      "server-uuid",
-    EnvironmentID: "environment-uuid",
-    Repository:    "https://github.com/user/repo",
-    Branch:        "main",
-    BuildCommand:  "npm run build",
-    StartCommand:  "npm start",
-    Port:          3000,
-    Framework:     "nodejs",
-    EnvVars: map[string]interface{}{
-        "NODE_ENV": "production",
-        "API_KEY":  "secret-key",
+    Name:               "My Application",
+    Username:           "user",
+    Source:             "github",
+    Repository:         "https://github.com/user/repo",
+    Branch:             "main",
+    RepositoryLanguage: "nodejs",
+    Framework:          "nodejs",
+    ClusterUUID:        "server-uuid",
+    EnvironmentUUID:    "environment-uuid",
+    Environment:        "production",
+    WorkspaceUUID:      "workspace-uuid",
+    BuildSettings: pipeops.CreateProjectBuildSettings{
+        BuildMethod:  "nodejs",
+        BuildCommand: "npm run build",
+        RunCommand:   "npm start",
+        Worker:       &worker,
+    },
+    NetworkSettings: []pipeops.CreateProjectNetworkSetting{{Port: 3000, Protocol: "HTTP"}},
+    EnvVariables: []pipeops.CreateProjectEnvVar{
+        {Key: "NODE_ENV", Value: "production"},
+        {Key: "API_KEY", Value: "secret-key"},
     },
 })
 if err != nil {
