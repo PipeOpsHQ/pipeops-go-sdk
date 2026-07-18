@@ -38,9 +38,80 @@ type Project struct {
 	// Populated from project/fetch as public_url.
 	PublicURL string `json:"public_url,omitempty"`
 	// CustomDomainName is the stored managed domain(s) assigned at create/migrate.
-	CustomDomainName string     `json:"CustomDomainName,omitempty"`
-	CreatedAt        *Timestamp `json:"created_at,omitempty"`
-	UpdatedAt        *Timestamp `json:"updated_at,omitempty"`
+	// project/fetch returns this as a string array (comma-split of the DB string);
+	// other endpoints may return a plain string. FlexibleCSVString accepts both.
+	CustomDomainName FlexibleCSVString `json:"CustomDomainName,omitempty"`
+	CreatedAt        *Timestamp        `json:"created_at,omitempty"`
+	UpdatedAt        *Timestamp        `json:"updated_at,omitempty"`
+}
+
+// FlexibleCSVString unmarshals a JSON string or array of strings.
+// Arrays are joined with commas (controller project/fetch splits CustomDomainName).
+type FlexibleCSVString string
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (f *FlexibleCSVString) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		*f = ""
+		return nil
+	}
+
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*f = FlexibleCSVString(strings.TrimSpace(single))
+		return nil
+	}
+
+	var parts []string
+	if err := json.Unmarshal(data, &parts); err != nil {
+		return fmt.Errorf("FlexibleCSVString: expected string or []string: %w", err)
+	}
+	cleaned := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			cleaned = append(cleaned, t)
+		}
+	}
+	*f = FlexibleCSVString(strings.Join(cleaned, ","))
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler (always a string).
+func (f FlexibleCSVString) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(f))
+}
+
+// String returns the joined domain string.
+func (f FlexibleCSVString) String() string {
+	return string(f)
+}
+
+// First returns the first domain entry (preferred for public URL display).
+func (f FlexibleCSVString) First() string {
+	s := strings.TrimSpace(string(f))
+	if s == "" {
+		return ""
+	}
+	if i := strings.IndexByte(s, ','); i >= 0 {
+		return strings.TrimSpace(s[:i])
+	}
+	return s
+}
+
+// All returns individual domain entries.
+func (f FlexibleCSVString) All() []string {
+	s := strings.TrimSpace(string(f))
+	if s == "" {
+		return nil
+	}
+	raw := strings.Split(s, ",")
+	out := make([]string, 0, len(raw))
+	for _, p := range raw {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // ProjectsResponse represents a list of projects response.

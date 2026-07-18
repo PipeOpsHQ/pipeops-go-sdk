@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Project.CustomDomainName` accepts both string and string-array JSON (project/fetch splits domains into an array).
+
 ### Changed
 - `CreateProjectRequest` now matches control-plane `POST /project/create` (clusterUUID, environment_uuid, buildSettings, envVariables, networkSettings, workspace_uuid, …). Legacy `server_id` / `environment_id` / `build_command` fields are removed.
+- `Project.CustomDomainName` type is `FlexibleCSVString` (string-compatible via `.String()` / `.First()`).
 
 ### Added
 - GitHub Actions CI workflow for automated testing and linting
