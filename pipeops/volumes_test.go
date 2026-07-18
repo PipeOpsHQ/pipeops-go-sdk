@@ -20,10 +20,12 @@ func TestVolumeServicePaths(t *testing.T) {
 
 	// Stub workspace list so firstWorkspaceUUID succeeds.
 	mux.HandleFunc("/workspace", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"data":    []map[string]string{{"UUID": "ws-1", "uuid": "ws-1"}},
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	t.Run("List", func(t *testing.T) {
@@ -37,14 +39,16 @@ func TestVolumeServicePaths(t *testing.T) {
 					t.Fatalf("expected workspace query, got %s", r.URL.RawQuery)
 				}
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"volumes": []map[string]string{{"uuid": "vol-1", "status": "mounted"}},
 					"summary": map[string]int{"mounted": 1, "unattached": 0},
 					"total":   1,
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.Volumes.List(context.Background(), &VolumeListOptions{WorkspaceUUID: "ws-1"})
 		if err != nil {
@@ -60,10 +64,12 @@ func TestVolumeServicePaths(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data":    map[string]string{"uuid": "vol-2", "status": "unattached"},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.Volumes.Get(context.Background(), "vol-2", &VolumeListOptions{WorkspaceUUID: "ws-1"})
 		if err != nil {
@@ -79,13 +85,15 @@ func TestVolumeServicePaths(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("method = %s", r.Method)
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
 					"volume":  map[string]string{"uuid": "vol-3", "status": "mounted"},
 					"message": "remount scheduled",
 				},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		resp, _, err := client.Volumes.Remount(context.Background(), "vol-3", &RemountVolumeRequest{
 			TargetType: "project",
@@ -113,10 +121,12 @@ func TestVolumeServicePaths(t *testing.T) {
 				code = http.StatusAccepted
 			}
 			w.WriteHeader(code)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data":    map[string]string{"uuid": "exp-1", "status": status},
-			})
+			}); err != nil {
+				t.Fatal(err)
+			}
 		})
 		start, _, err := client.Volumes.StartExport(context.Background(), "vol-4", &VolumeListOptions{WorkspaceUUID: "ws-1"})
 		if err != nil {
@@ -158,31 +168,37 @@ func TestAddOnBackupPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	mux.HandleFunc("/workspace", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"data":    []map[string]string{{"UUID": "ws-1"}},
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	})
 	mux.HandleFunc("/addons/deployments/dep-1/backups", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("method = %s", r.Method)
 		}
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"data": map[string]interface{}{
 				"addon_uid": "dep-1",
 				"snapshots": []map[string]string{{"id": "snap-1"}},
 			},
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	})
 	mux.HandleFunc("/addons/deployments/dep-1/backups/export", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s", r.Method)
 		}
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"data":    map[string]string{"export_id": "exp-1", "status": "pending"},
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	list, _, err := client.AddOns.ListAddonBackups(context.Background(), "dep-1")
