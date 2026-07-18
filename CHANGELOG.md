@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `CreateProjectRequest` now matches control-plane `POST /project/create` (clusterUUID, environment_uuid, buildSettings, envVariables, networkSettings, workspace_uuid, …). Legacy `server_id` / `environment_id` / `build_command` fields are removed.
+
 ### Added
 - GitHub Actions CI workflow for automated testing and linting
 - GitHub Actions release workflow for automated releases
