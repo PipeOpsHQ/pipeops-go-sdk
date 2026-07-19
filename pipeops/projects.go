@@ -1226,6 +1226,171 @@ func (s *ProjectService) UpdateEnvVariables(ctx context.Context, projectUUID str
 	return envResp, resp, nil
 }
 
+// DeploySettingsRequest is a thin prefer-client body for
+// POST /project/settings/deploy/:uuid. Omitted strings and nil bool pointers are
+// filled from the stored project on the control plane; non-empty client values win.
+type DeploySettingsRequest struct {
+	AutoDeployEnabled *bool  `json:"autoDeployEnabled,omitempty"`
+	Branch            string `json:"branch,omitempty"`
+	AutoRollback      *bool  `json:"autoRollback,omitempty"`
+	UserName          string `json:"username,omitempty"`
+	Repository        string `json:"repository,omitempty"`
+	// WorkspaceUUID scopes the request when multi-workspace tokens are used.
+	WorkspaceUUID string `json:"-"`
+}
+
+// DeploySettingsResponse is the control-plane response for deploy settings update.
+type DeploySettingsResponse struct {
+	Success bool   `json:"success"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		AutoDeployEnabled *bool  `json:"autoDeployEnabled"`
+		Branch            string `json:"branch"`
+	} `json:"data"`
+}
+
+// UpdateDeploySettings updates source-control / auto-deploy flags via
+// POST /project/settings/deploy/:uuid. Prefer-client: only send fields you want
+// to change (e.g. only AutoDeployEnabled); the control plane fills branch,
+// repository, username, and omitted auto flags from the project.
+func (s *ProjectService) UpdateDeploySettings(ctx context.Context, projectUUID string, req *DeploySettingsRequest) (*DeploySettingsResponse, *http.Response, error) {
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+	if req == nil {
+		req = &DeploySettingsRequest{}
+	}
+
+	workspaceUUID := strings.TrimSpace(req.WorkspaceUUID)
+	if workspaceUUID == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspaceUUID = ws
+		}
+	}
+
+	u := fmt.Sprintf("project/settings/deploy/%s", url.PathEscape(projectUUID))
+	u, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Thin body: omitempty drops empty strings and nil pointers for prefer-client.
+	body := struct {
+		AutoDeployEnabled *bool  `json:"autoDeployEnabled,omitempty"`
+		Branch            string `json:"branch,omitempty"`
+		AutoRollback      *bool  `json:"autoRollback,omitempty"`
+		UserName          string `json:"username,omitempty"`
+		Repository        string `json:"repository,omitempty"`
+	}{
+		AutoDeployEnabled: req.AutoDeployEnabled,
+		Branch:            strings.TrimSpace(req.Branch),
+		AutoRollback:      req.AutoRollback,
+		UserName:          strings.TrimSpace(req.UserName),
+		Repository:        strings.TrimSpace(req.Repository),
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(DeploySettingsResponse)
+	resp, err := s.client.Do(ctx, httpReq, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
+// SecurityPolicyRequest is a partial prefer-client body for
+// PUT /project/settings/security-policy/:uuid. Nil pointers are omitted so the
+// control plane keeps existing policy fields; non-nil values (including false/0) win.
+type SecurityPolicyRequest struct {
+	Enabled       *bool    `json:"enabled,omitempty"`
+	MaxCritical   *int     `json:"maxCritical,omitempty"`
+	MaxHigh       *int     `json:"maxHigh,omitempty"`
+	MaxMedium     *int     `json:"maxMedium,omitempty"`
+	MaxCvssScore  *float64 `json:"maxCvssScore,omitempty"`
+	MaxTotalVulns *int     `json:"maxTotalVulns,omitempty"`
+	FailOnSecrets *bool    `json:"failOnSecrets,omitempty"`
+	// WorkspaceUUID scopes the request when multi-workspace tokens are used.
+	WorkspaceUUID string `json:"-"`
+}
+
+// SecurityPolicyResponse is the control-plane response for security policy update.
+type SecurityPolicyResponse struct {
+	Success bool   `json:"success"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    struct {
+		SecurityPolicy map[string]interface{} `json:"securityPolicy"`
+	} `json:"data"`
+}
+
+// UpdateSecurityPolicy updates image-scan gate settings via
+// PUT /project/settings/security-policy/:uuid. Prefer-client partial updates:
+// only set the fields you want to change; omitted keys keep stored values.
+func (s *ProjectService) UpdateSecurityPolicy(ctx context.Context, projectUUID string, req *SecurityPolicyRequest) (*SecurityPolicyResponse, *http.Response, error) {
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+	if req == nil {
+		req = &SecurityPolicyRequest{}
+	}
+
+	workspaceUUID := strings.TrimSpace(req.WorkspaceUUID)
+	if workspaceUUID == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspaceUUID = ws
+		}
+	}
+
+	u := fmt.Sprintf("project/settings/security-policy/%s", url.PathEscape(projectUUID))
+	u, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Build body only with fields the caller set so JSON key presence matches intent.
+	body := map[string]interface{}{}
+	if req.Enabled != nil {
+		body["enabled"] = *req.Enabled
+	}
+	if req.MaxCritical != nil {
+		body["maxCritical"] = *req.MaxCritical
+	}
+	if req.MaxHigh != nil {
+		body["maxHigh"] = *req.MaxHigh
+	}
+	if req.MaxMedium != nil {
+		body["maxMedium"] = *req.MaxMedium
+	}
+	if req.MaxCvssScore != nil {
+		body["maxCvssScore"] = *req.MaxCvssScore
+	}
+	if req.MaxTotalVulns != nil {
+		body["maxTotalVulns"] = *req.MaxTotalVulns
+	}
+	if req.FailOnSecrets != nil {
+		body["failOnSecrets"] = *req.FailOnSecrets
+	}
+
+	httpReq, err := s.client.NewRequest(http.MethodPut, u, body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(SecurityPolicyResponse)
+	resp, err := s.client.Do(ctx, httpReq, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
 // GetEnvVariables retrieves environment variables for a project.
 func (s *ProjectService) GetEnvVariables(ctx context.Context, projectUUID string) (*EnvVariablesResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/env/%s", projectUUID)
