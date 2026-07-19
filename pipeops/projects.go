@@ -1120,45 +1120,100 @@ func (s *ProjectService) UpdateDomain(ctx context.Context, projectUUID string, r
 }
 
 // EnvVariablesRequest represents a request to update environment variables.
+// Body uses control-plane camelCase envVariables (dashboard contract).
+// Set Merge=true to overlay keys onto existing envs (?merge=true) so thin
+// clients can patch without wiping the full set.
 type EnvVariablesRequest struct {
-	EnvVariables []EnvVariable `json:"env_variables"`
+	EnvVariables []EnvVariable `json:"envVariables"`
+	// Merge when true, POST with ?merge=true: client keys win, others kept.
+	Merge bool `json:"-"`
+	// WorkspaceUUID scopes the request when multi-workspace tokens are used.
+	WorkspaceUUID string `json:"-"`
 }
 
 // EnvVariablesResponse represents environment variables response.
+// Data may be a bare array (GET/POST success from control plane) or wrapped.
 type EnvVariablesResponse struct {
+	Success bool   `json:"success"`
 	Status  string `json:"status"`
 	Message string `json:"message"`
-	Data    struct {
-		EnvVariables []EnvVariable `json:"env_variables"`
-	} `json:"data"`
+	// Data is flexible: control plane returns []EnvVariable at "data".
+	Data EnvVariablesData `json:"data"`
 }
 
-// UpdateEnvVariables updates environment variables for a project.
+// EnvVariablesData unmarshals either a bare env array or {envVariables|env_variables: [...]}.
+type EnvVariablesData struct {
+	EnvVariables []EnvVariable
+}
+
+// UnmarshalJSON accepts data as [] or {envVariables|env_variables:[]}.
+func (d *EnvVariablesData) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 || string(b) == "null" {
+		d.EnvVariables = nil
+		return nil
+	}
+	var asArr []EnvVariable
+	if err := json.Unmarshal(b, &asArr); err == nil {
+		d.EnvVariables = asArr
+		return nil
+	}
+	aux := struct {
+		EnvVariables   []EnvVariable `json:"envVariables"`
+		EnvVariablesSC []EnvVariable `json:"env_variables"`
+	}{}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	if aux.EnvVariables != nil {
+		d.EnvVariables = aux.EnvVariables
+		return nil
+	}
+	d.EnvVariables = aux.EnvVariablesSC
+	return nil
+}
+
+type envUpdateQueryOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+	Merge         bool   `url:"merge,omitempty"`
+}
+
+// UpdateEnvVariables updates environment variables for a project via
+// POST /project/settings/env/:uuid. Prefer-client on the control plane:
+// client-provided keys win; with Merge=true existing keys not in the request
+// are preserved; PORT is injected from network when missing.
 func (s *ProjectService) UpdateEnvVariables(ctx context.Context, projectUUID string, req *EnvVariablesRequest) (*EnvVariablesResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/settings/env/%s", projectUUID)
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+	if req == nil {
+		return nil, nil, errors.New("env request cannot be nil")
+	}
+	if req.EnvVariables == nil {
+		req.EnvVariables = []EnvVariable{}
+	}
 
-	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
-		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
-		if err != nil {
-			return nil, nil, err
-		}
-
-		httpReq, err := s.client.NewRequest(http.MethodPost, withWorkspace, req)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		envResp := new(EnvVariablesResponse)
-		resp, err := s.client.Do(ctx, httpReq, envResp)
-		if err == nil {
-			return envResp, resp, nil
-		}
-		if !isNotFound(err) {
-			return nil, resp, err
+	workspaceUUID := strings.TrimSpace(req.WorkspaceUUID)
+	if workspaceUUID == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspaceUUID = ws
 		}
 	}
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+	u := fmt.Sprintf("project/settings/env/%s", url.PathEscape(projectUUID))
+	u, err := addOptions(u, &envUpdateQueryOptions{
+		WorkspaceUUID: workspaceUUID,
+		Merge:         req.Merge,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Body: only envVariables (control-plane contract).
+	body := map[string]interface{}{
+		"envVariables": req.EnvVariables,
+	}
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1168,7 +1223,6 @@ func (s *ProjectService) UpdateEnvVariables(ctx context.Context, projectUUID str
 	if err != nil {
 		return nil, resp, err
 	}
-
 	return envResp, resp, nil
 }
 
