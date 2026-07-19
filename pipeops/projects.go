@@ -1206,30 +1206,6 @@ func (s *ProjectService) Deploy(ctx context.Context, projectUUID string, opts ..
 	return resp, err
 }
 
-// lastProjectCustomDomain is retained for Create/Get helpers that normalize
-// FlexibleCSVString-style domain fields.
-func lastProjectCustomDomain(raw json.RawMessage) string {
-	if len(raw) == 0 || string(raw) == "null" {
-		return ""
-	}
-
-	var single string
-	if err := json.Unmarshal(raw, &single); err == nil {
-		return strings.TrimSpace(single)
-	}
-
-	var domains []string
-	if err := json.Unmarshal(raw, &domains); err != nil {
-		return ""
-	}
-	for i := len(domains) - 1; i >= 0; i-- {
-		if domain := strings.TrimSpace(domains[i]); domain != "" {
-			return domain
-		}
-	}
-	return ""
-}
-
 // Restart restarts a project.
 func (s *ProjectService) Restart(ctx context.Context, projectUUID string) (*http.Response, error) {
 	u := fmt.Sprintf("project/%s/restart", projectUUID)
