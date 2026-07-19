@@ -1212,9 +1212,14 @@ func (s *ProjectService) GetEnvVariables(ctx context.Context, projectUUID string
 }
 
 // ProjectDeployOptions controls a project redeployment.
+// The control plane applies prefer-client defaults: omitted body fields are
+// filled from the stored project snapshot, so callers only need project UUID
+// (and optional workspace/no-cache flags).
 type ProjectDeployOptions struct {
-	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
-	NoCache       bool   `url:"no_cache,omitempty"`
+	// WorkspaceUUID scopes the redeploy to a workspace (query + body).
+	WorkspaceUUID string `url:"workspace_uuid,omitempty" json:"workspace_uuid,omitempty"`
+	// NoCache forces a clean rebuild without Docker layer cache.
+	NoCache bool `url:"no_cache,omitempty" json:"-"`
 }
 
 type projectRedeployQueryOptions struct {
@@ -1223,99 +1228,23 @@ type projectRedeployQueryOptions struct {
 	NoCache       bool   `url:"no_cache,omitempty"`
 }
 
-type projectRedeploySnapshot struct {
-	Data struct {
-		Project    projectRedeployProject    `json:"project"`
-		Deployment projectRedeployDeployment `json:"deployment"`
-	} `json:"data"`
-}
-
-type projectNetworkSettingsSnapshot struct {
-	Data json.RawMessage `json:"data"`
-}
-
-type projectRedeployProject struct {
-	Name             string          `json:"Name"`
-	Username         string          `json:"Username"`
-	Source           string          `json:"Source"`
-	Repository       string          `json:"Repository"`
-	Branch           string          `json:"Branch"`
-	Environment      string          `json:"Environment"`
-	EnvironmentUUID  string          `json:"EnvironmentUUID"`
-	ClusterUUID      string          `json:"ClusterUUID"`
-	RawLanguage      string          `json:"RawLanguage"`
-	BuildMethod      string          `json:"BuildMethod"`
-	BuildCommand     string          `json:"BuildCommand"`
-	BuildPath        string          `json:"BuildPath"`
-	RunCommand       string          `json:"RunCommand"`
-	BuildVersion     string          `json:"BuildVersion"`
-	BuildDirectory   string          `json:"BuildDirectory"`
-	DockerPath       string          `json:"DockerPath"`
-	Worker           bool            `json:"Worker"`
-	Replicas         int             `json:"Replicas"`
-	PostStartCommand string          `json:"PostStartCommand"`
-	WorkerRunCommand string          `json:"WorkerRunCommand"`
-	Job              bool            `json:"Job"`
-	JobSuspended     bool            `json:"JobSuspended"`
-	JobRunCommand    string          `json:"JobRunCommand"`
-	JobRunInterval   string          `json:"JobRunInterval"`
-	Configuration    json.RawMessage `json:"Configuration"`
-	Kind             string          `json:"Kind"`
-	CustomDomainName json.RawMessage `json:"CustomDomainName"`
-}
-
-type projectRedeployDeployment struct {
-	CommitSha string `json:"CommitSha"`
-	CommitURL string `json:"CommitURL"`
-}
-
-type projectRedeployBuildSettings struct {
-	Type           string `json:"type"`
-	BuildMethod    string `json:"buildMethod"`
-	BuildCommand   string `json:"buildCommand"`
-	BuildPath      string `json:"buildPath"`
-	RunCommand     string `json:"runCommand"`
-	Worker         bool   `json:"worker"`
-	BuildVersion   string `json:"buildVersion"`
-	BuildDirectory string `json:"buildDirectory"`
-	DockerPath     string `json:"dockerPath"`
-}
-
-type projectRedeployJobDetails struct {
-	Suspended      bool   `json:"suspended"`
-	Enable         bool   `json:"enable"`
-	JobRunInterval string `json:"JobRunInterval"`
-	JobRunCommand  string `json:"JobRunCommand"`
-}
-
+// projectRedeployRequest is the thin redeploy body. Prefer-client on the
+// controller fills source, repo, build, config, etc. from the stored project.
+// Only workspace_uuid is sent when known so multi-workspace automation stays scoped.
 type projectRedeployRequest struct {
-	WorkspaceUUID      string                       `json:"workspace_uuid,omitempty"`
-	Name               string                       `json:"name"`
-	Username           string                       `json:"username"`
-	Source             string                       `json:"source"`
-	Repository         string                       `json:"repository"`
-	CommitURL          string                       `json:"commitURL"`
-	CommitSha          string                       `json:"commitSha"`
-	RepositoryLanguage string                       `json:"repositoryLanguage"`
-	RawLanguage        string                       `json:"rawLanguage"`
-	Branch             string                       `json:"branch"`
-	EnvironmentUUID    string                       `json:"environment_uuid,omitempty"`
-	Environment        string                       `json:"environment"`
-	CustomDomainName   string                       `json:"customDomainName,omitempty"`
-	ClusterUUID        string                       `json:"clusterUUID"`
-	PostStart          string                       `json:"postStart"`
-	WorkerRunCommand   string                       `json:"workerRunCommand"`
-	Replicas           int                          `json:"replicas"`
-	BuildSettings      projectRedeployBuildSettings `json:"buildSettings"`
-	JobDetails         projectRedeployJobDetails    `json:"jobDetails"`
-	NetworkSettings    json.RawMessage              `json:"networkSettings,omitempty"`
-	Configuration      json.RawMessage              `json:"configuration"`
-	Kind               string                       `json:"kind,omitempty"`
+	WorkspaceUUID string `json:"workspace_uuid,omitempty"`
 }
 
-// Deploy triggers a deployment for a project using the controller's redeploy
-// contract. The current project snapshot is fetched first so a deploy does not
-// accidentally clear build or runtime configuration.
+// Deploy triggers a deployment via POST /project/redeploy/:uuid.
+//
+// Body is intentionally thin (prefer-client): the controller reloads name,
+// source, repository, branch, build settings, configuration, and related
+// fields from the project record when omitted. Env vars and network ports are
+// loaded server-side for the runner. Pass ProjectDeployOptions.WorkspaceUUID
+// for workspace-scoped automation; NoCache=true forces a full rebuild.
+//
+// Full UpdateProject bodies (as sent by the dashboard) still work — client
+// non-empty values always win over stored defaults.
 func (s *ProjectService) Deploy(ctx context.Context, projectUUID string, opts ...*ProjectDeployOptions) (*http.Response, error) {
 	projectUUID = strings.TrimSpace(projectUUID)
 	if projectUUID == "" {
@@ -1327,44 +1256,18 @@ func (s *ProjectService) Deploy(ctx context.Context, projectUUID string, opts ..
 		*deployOpts = *opts[0]
 	}
 
-	fetchPath := fmt.Sprintf("project/fetch/%s", url.PathEscape(projectUUID))
-	if workspaceUUID := strings.TrimSpace(deployOpts.WorkspaceUUID); workspaceUUID != "" {
-		var err error
-		fetchPath, err = addOptions(fetchPath, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	fetchReq, err := s.client.NewRequest(http.MethodGet, fetchPath, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	snapshot := new(projectRedeploySnapshot)
-	if _, err := s.client.Do(ctx, fetchReq, snapshot); err != nil {
-		return nil, err
-	}
-
-	payload, err := buildProjectRedeployRequest(snapshot, deployOpts.WorkspaceUUID)
-	if err != nil {
-		return nil, err
-	}
-	if !snapshot.Data.Project.Worker && !snapshot.Data.Project.Job {
-		payload.NetworkSettings, err = s.fetchProjectNetworkSettings(ctx, projectUUID, deployOpts.WorkspaceUUID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	redeployPath := fmt.Sprintf("project/redeploy/%s", url.PathEscape(projectUUID))
-	redeployPath, err = addOptions(redeployPath, &projectRedeployQueryOptions{
+	redeployPath, err := addOptions(redeployPath, &projectRedeployQueryOptions{
 		WorkspaceUUID: deployOpts.WorkspaceUUID,
 		Action:        "deploy",
 		NoCache:       deployOpts.NoCache,
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	payload := &projectRedeployRequest{
+		WorkspaceUUID: strings.TrimSpace(deployOpts.WorkspaceUUID),
 	}
 
 	req, err := s.client.NewRequest(http.MethodPost, redeployPath, payload)
@@ -1374,121 +1277,6 @@ func (s *ProjectService) Deploy(ctx context.Context, projectUUID string, opts ..
 
 	resp, err := s.client.Do(ctx, req, nil)
 	return resp, err
-}
-
-func (s *ProjectService) fetchProjectNetworkSettings(ctx context.Context, projectUUID, workspaceUUID string) (json.RawMessage, error) {
-	networkPath := fmt.Sprintf("project/settings/network/%s", url.PathEscape(projectUUID))
-	if workspaceUUID = strings.TrimSpace(workspaceUUID); workspaceUUID != "" {
-		var err error
-		networkPath, err = addOptions(networkPath, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	req, err := s.client.NewRequest(http.MethodGet, networkPath, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	snapshot := new(projectNetworkSettingsSnapshot)
-	if _, err := s.client.Do(ctx, req, snapshot); err != nil {
-		return nil, err
-	}
-
-	raw := bytes.TrimSpace(snapshot.Data)
-	var networkSettings []json.RawMessage
-	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
-		return nil, errors.New("project snapshot is missing network settings")
-	}
-	if err := json.Unmarshal(raw, &networkSettings); err != nil {
-		return nil, fmt.Errorf("decode project network settings: %w", err)
-	}
-	if len(networkSettings) == 0 {
-		return nil, errors.New("project snapshot is missing network settings")
-	}
-
-	return append(json.RawMessage(nil), raw...), nil
-}
-
-func buildProjectRedeployRequest(snapshot *projectRedeploySnapshot, workspaceUUID string) (*projectRedeployRequest, error) {
-	if snapshot == nil {
-		return nil, errors.New("project snapshot is required")
-	}
-
-	project := snapshot.Data.Project
-	if strings.TrimSpace(project.Name) == "" {
-		return nil, errors.New("project snapshot is missing name")
-	}
-	if len(project.Configuration) == 0 || string(project.Configuration) == "null" {
-		return nil, errors.New("project snapshot is missing configuration")
-	}
-
-	repositoryLanguage := project.BuildMethod
-	if strings.EqualFold(strings.TrimSpace(project.RawLanguage), "html") {
-		repositoryLanguage = "Html"
-	}
-
-	return &projectRedeployRequest{
-		WorkspaceUUID:      strings.TrimSpace(workspaceUUID),
-		Name:               project.Name,
-		Username:           project.Username,
-		Source:             project.Source,
-		Repository:         project.Repository,
-		CommitURL:          snapshot.Data.Deployment.CommitURL,
-		CommitSha:          snapshot.Data.Deployment.CommitSha,
-		RepositoryLanguage: repositoryLanguage,
-		RawLanguage:        project.RawLanguage,
-		Branch:             project.Branch,
-		EnvironmentUUID:    project.EnvironmentUUID,
-		Environment:        project.Environment,
-		CustomDomainName:   lastProjectCustomDomain(project.CustomDomainName),
-		ClusterUUID:        project.ClusterUUID,
-		PostStart:          project.PostStartCommand,
-		WorkerRunCommand:   project.WorkerRunCommand,
-		Replicas:           project.Replicas,
-		BuildSettings: projectRedeployBuildSettings{
-			Type:           "user",
-			BuildMethod:    project.BuildMethod,
-			BuildCommand:   project.BuildCommand,
-			BuildPath:      project.BuildPath,
-			RunCommand:     project.RunCommand,
-			Worker:         project.Worker,
-			BuildVersion:   project.BuildVersion,
-			BuildDirectory: project.BuildDirectory,
-			DockerPath:     project.DockerPath,
-		},
-		JobDetails: projectRedeployJobDetails{
-			Suspended:      project.JobSuspended,
-			Enable:         project.Job,
-			JobRunInterval: project.JobRunInterval,
-			JobRunCommand:  project.JobRunCommand,
-		},
-		Configuration: project.Configuration,
-		Kind:          project.Kind,
-	}, nil
-}
-
-func lastProjectCustomDomain(raw json.RawMessage) string {
-	if len(raw) == 0 || string(raw) == "null" {
-		return ""
-	}
-
-	var single string
-	if err := json.Unmarshal(raw, &single); err == nil {
-		return strings.TrimSpace(single)
-	}
-
-	var domains []string
-	if err := json.Unmarshal(raw, &domains); err != nil {
-		return ""
-	}
-	for i := len(domains) - 1; i >= 0; i-- {
-		if domain := strings.TrimSpace(domains[i]); domain != "" {
-			return domain
-		}
-	}
-	return ""
 }
 
 // Restart restarts a project.
