@@ -125,15 +125,24 @@ fmt.Println("Project deleted successfully")
 
 ### Deploy Project
 
-Trigger a deployment:
+Trigger a redeployment. The control plane uses **prefer-client** defaults: a
+thin body is enough — omitted fields (source, repo, branch, build settings,
+configuration, etc.) are filled from the stored project. Env vars and network
+ports are loaded server-side. Optional `WorkspaceUUID` scopes multi-workspace
+automation; `NoCache` forces a full rebuild.
 
 ```go
-deployment, _, err := client.Projects.Deploy(ctx, "project-uuid")
+// Minimal redeploy (empty body on the wire; server fills from DB)
+_, err := client.Projects.Deploy(ctx, "project-uuid")
 if err != nil {
     log.Fatalf("Deployment failed: %v", err)
 }
 
-fmt.Printf("Deployment started: %s\n", deployment.Data.DeploymentID)
+// Workspace-scoped, clean rebuild
+_, err = client.Projects.Deploy(ctx, "project-uuid", &pipeops.ProjectDeployOptions{
+    WorkspaceUUID: "workspace-uuid",
+    NoCache:       true,
+})
 ```
 
 ### Get Project Logs
