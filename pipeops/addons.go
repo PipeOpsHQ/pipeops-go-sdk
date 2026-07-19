@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // AddOnService handles communication with the add-on related
@@ -145,19 +147,83 @@ type AddOnDeploymentResponse struct {
 }
 
 // DeployAddOnRequest represents a request to deploy an add-on.
+// Prefer-client on the control plane fills Config from the marketplace catalog
+// when omitted; thin clients only need addon ID + workspace + server.
 type DeployAddOnRequest struct {
-	ID        string                 `json:"id,omitempty"`
-	Server    string                 `json:"Server,omitempty"`
-	Workspace string                 `json:"Workspace,omitempty"`
-	ProjectID string                 `json:"project_id,omitempty"`
-	Config    map[string]interface{} `json:"config,omitempty"`
+	// ID is the marketplace addon UID (also accepted as Deployment.ID).
+	ID string `json:"id,omitempty"`
+	// Server is the cluster UUID.
+	Server string `json:"Server,omitempty"`
+	// Workspace is the workspace UUID.
+	Workspace string `json:"Workspace,omitempty"`
+	// Environment is the environment UUID. When empty, control plane picks the
+	// first environment on the target cluster (prefer-client).
+	Environment string `json:"Environment,omitempty"`
+	// ProjectID is optional placement hint (reserved / future).
+	ProjectID string `json:"project_id,omitempty"`
+	// Tag is the image/version tag override.
+	Tag string `json:"Tag,omitempty"`
+	// Config is optional partial deployment config. Gaps are filled from catalog.
+	Config map[string]interface{} `json:"config,omitempty"`
 }
 
-// Deploy deploys an add-on.
-func (s *AddOnService) Deploy(ctx context.Context, req *DeployAddOnRequest) (*AddOnDeploymentResponse, *http.Response, error) {
-	u := "addons/deploy"
+// deployAddonsWireBody matches POST /addons/deploy (dashboard + prefer-client API).
+type deployAddonsWireBody struct {
+	Workspace   string                 `json:"Workspace"`
+	Server      string                 `json:"Server"`
+	Environment string                 `json:"Environment,omitempty"`
+	Deployment  deployAddonsWireDeploy `json:"Deployment"`
+	// Thin aliases also accepted by control-plane UnmarshalJSON.
+	ID     string                 `json:"id,omitempty"`
+	Config map[string]interface{} `json:"config,omitempty"`
+}
 
-	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
+type deployAddonsWireDeploy struct {
+	ID     string                 `json:"ID,omitempty"`
+	Tag    string                 `json:"Tag,omitempty"`
+	Config map[string]interface{} `json:"Config,omitempty"`
+}
+
+// Deploy deploys an add-on via POST /addons/deploy.
+// Sends both nested dashboard shape and thin aliases so older/newer controllers accept it.
+// Prefer-client fills missing Config/Environment from catalog and cluster defaults.
+func (s *AddOnService) Deploy(ctx context.Context, req *DeployAddOnRequest) (*AddOnDeploymentResponse, *http.Response, error) {
+	if req == nil {
+		return nil, nil, errors.New("deploy request cannot be nil")
+	}
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		return nil, nil, errors.New("addon id is required")
+	}
+	workspace := strings.TrimSpace(req.Workspace)
+	if workspace == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspace = ws
+		}
+	}
+	if workspace == "" {
+		return nil, nil, errors.New("workspace is required")
+	}
+	server := strings.TrimSpace(req.Server)
+	if server == "" {
+		return nil, nil, errors.New("server (cluster UUID) is required")
+	}
+
+	body := &deployAddonsWireBody{
+		Workspace:   workspace,
+		Server:      server,
+		Environment: strings.TrimSpace(req.Environment),
+		ID:          id,
+		Config:      req.Config,
+		Deployment: deployAddonsWireDeploy{
+			ID:     id,
+			Tag:    strings.TrimSpace(req.Tag),
+			Config: req.Config,
+		},
+	}
+
+	u := "addons/deploy"
+	httpReq, err := s.client.NewRequest(http.MethodPost, u, body)
 	if err != nil {
 		return nil, nil, err
 	}
