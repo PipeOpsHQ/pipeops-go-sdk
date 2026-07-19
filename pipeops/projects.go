@@ -647,9 +647,27 @@ type CreateProjectGitOpsSettings struct {
 
 // CreateProjectRequest is POST /project/create body.
 //
-// Field names match the control-plane types.CreateProject / dashboard publish
-// payload (clusterUUID, environment_uuid, buildSettings, envVariables, …).
-// The previous server_id/environment_id/build_command shape never matched the API.
+// Field names match control-plane types.CreateProject / dashboard publish.
+//
+// # Prefer-client defaults
+//
+// Create() and the control plane only fill gaps. If the dashboard (or any
+// client) already set a field, that value is kept:
+//
+//   - workspace_uuid: client → else first workspace
+//   - environment: client → else "development"
+//   - source: client → else "github"
+//   - envVariables: client list → else []; PORT injected only if missing and network Port set
+//   - buildSettings.worker: client → else false
+//   - networkSettings.Protocol: client → else "HTTP"
+//   - replicas: client when >0 (server also defaults when 0)
+//
+// Minimum for a standard git web app (parity with dashboard):
+// name, username, source, repository, branch, commitURL, commitSha,
+// repositoryLanguage, clusterUUID, environment_uuid, workspace_uuid,
+// buildSettings.buildMethod, networkSettings (with Port), envVariables (or PORT default).
+//
+// K8s env secret name is server/runner-owned: "{name}-{namespace}-secret".
 type CreateProjectRequest struct {
 	Name               string                        `json:"name"`
 	Username           string                        `json:"username,omitempty"`
@@ -687,15 +705,73 @@ type CreateProjectRequest struct {
 	GitOpsSettings     *CreateProjectGitOpsSettings  `json:"gitopsSettings,omitempty"`
 }
 
+// ApplyCreateProjectDefaults fills empty fields only (prefer client/dashboard values).
+// Safe to call before Create; Create invokes it automatically.
+func ApplyCreateProjectDefaults(req *CreateProjectRequest) {
+	if req == nil {
+		return
+	}
+	if strings.TrimSpace(req.Source) == "" {
+		req.Source = "github"
+	}
+	if strings.TrimSpace(req.Environment) == "" {
+		req.Environment = "development"
+	}
+	if req.EnvVariables == nil {
+		req.EnvVariables = []CreateProjectEnvVar{}
+	}
+	if req.BuildSettings.Worker == nil {
+		f := false
+		req.BuildSettings.Worker = &f
+	}
+	if req.JobDetails.Enable == nil {
+		f := false
+		req.JobDetails.Enable = &f
+	}
+	if req.JobDetails.Suspended == nil {
+		f := false
+		req.JobDetails.Suspended = &f
+	}
+	// Inject PORT only when client did not send PORT/port and network has Port.
+	hasPortEnv := false
+	for _, e := range req.EnvVariables {
+		k := strings.ToUpper(strings.TrimSpace(e.Key))
+		if k == "PORT" {
+			hasPortEnv = true
+			break
+		}
+	}
+	if !hasPortEnv {
+		for i := range req.NetworkSettings {
+			if req.NetworkSettings[i].Port > 0 {
+				req.EnvVariables = append(req.EnvVariables, CreateProjectEnvVar{
+					Key:   "PORT",
+					Value: strconv.Itoa(int(req.NetworkSettings[i].Port)),
+				})
+				break
+			}
+		}
+	}
+	for i := range req.NetworkSettings {
+		if strings.TrimSpace(req.NetworkSettings[i].Protocol) == "" {
+			req.NetworkSettings[i].Protocol = "HTTP"
+		}
+	}
+	if strings.TrimSpace(req.CommitURL) == "" && strings.TrimSpace(req.Repository) != "" {
+		// Soft default for API clients; dashboard usually sends the real commit URL.
+		req.CommitURL = strings.TrimSpace(req.Repository)
+	}
+}
+
 // Create creates a new project via POST /project/create.
-// If WorkspaceUUID is empty, the first workspace UUID is filled when available.
-// EnvVariables is sent as [] when nil so the API receives a JSON array.
+// Applies prefer-client defaults (see ApplyCreateProjectDefaults), then requires workspace_uuid.
 func (s *ProjectService) Create(ctx context.Context, req *CreateProjectRequest) (*ProjectResponse, *http.Response, error) {
 	if req == nil {
 		return nil, nil, errors.New("create project request cannot be nil")
 	}
 
 	payload := *req
+	ApplyCreateProjectDefaults(&payload)
 	if strings.TrimSpace(payload.WorkspaceUUID) == "" {
 		ws, _, err := firstWorkspaceUUID(ctx, s.client)
 		if err != nil {
@@ -705,9 +781,6 @@ func (s *ProjectService) Create(ctx context.Context, req *CreateProjectRequest) 
 	}
 	if strings.TrimSpace(payload.WorkspaceUUID) == "" {
 		return nil, nil, errors.New("workspace_uuid is required")
-	}
-	if payload.EnvVariables == nil {
-		payload.EnvVariables = []CreateProjectEnvVar{}
 	}
 
 	u := "project/create"
