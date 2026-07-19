@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `ApplyCreateProjectDefaults` — prefer-client create defaults (PORT from network only if missing, source/environment/protocol/worker gaps only)
+
 ### Fixed
 - `Project.CustomDomainName` accepts both string and string-array JSON (project/fetch splits domains into an array).
 
