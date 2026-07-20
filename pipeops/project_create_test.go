@@ -135,4 +135,21 @@ func TestProjectService_Create_ControllerContract(t *testing.T) {
 	if net0["Port"] != float64(3000) || net0["Protocol"] != "HTTP" {
 		t.Fatalf("network entry = %+v", net0)
 	}
+	if net0["Public"] != true {
+		t.Fatalf("Public default = %#v, want true", net0["Public"])
+	}
+	if net0["AutoHTTPS"] != true {
+		t.Fatalf("AutoHTTPS default = %#v, want true", net0["AutoHTTPS"])
+	}
+}
+
+func TestNormalizeCreateRepository(t *testing.T) {
+	t.Parallel()
+	got := normalizeCreateRepository("https://github.com/9trocode/pipeops-hello-app", "9trocode")
+	if got != "9trocode/pipeops-hello-app" {
+		t.Fatalf("got %q", got)
+	}
+	if normalizeCreateRepository("acme/app", "") != "acme/app" {
+		t.Fatal("owner/repo should pass through")
+	}
 }
