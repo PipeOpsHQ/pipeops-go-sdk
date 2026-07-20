@@ -535,7 +535,11 @@ type ProjectGetOptions struct {
 
 // Get fetches a project by UUID.
 func (s *ProjectService) Get(ctx context.Context, projectUUID string, opts ...*ProjectGetOptions) (*ProjectResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/fetch/%s", projectUUID)
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+	u := fmt.Sprintf("project/fetch/%s", url.PathEscape(projectUUID))
 
 	// Use provided workspace or fall back to first available
 	var workspaceUUID string
@@ -602,12 +606,13 @@ type CreateProjectJobDetails struct {
 
 // CreateProjectNetworkSetting is one networkSettings entry (dashboard uses capital keys).
 type CreateProjectNetworkSetting struct {
-	Port     int32                    `json:"Port"`
-	Protocol string                   `json:"Protocol,omitempty"`
-	Domains  []CreateProjectDomainRef `json:"Domains,omitempty"`
-	Public   *bool                    `json:"Public,omitempty"`
-	Default  *bool                    `json:"Default,omitempty"`
-	EnvPort  bool                     `json:"EnvPort,omitempty"`
+	Port      int32                    `json:"Port"`
+	Protocol  string                   `json:"Protocol,omitempty"`
+	Domains   []CreateProjectDomainRef `json:"Domains,omitempty"`
+	Public    *bool                    `json:"Public,omitempty"`
+	Default   *bool                    `json:"Default,omitempty"`
+	AutoHTTPS *bool                    `json:"AutoHTTPS,omitempty"`
+	EnvPort   bool                     `json:"EnvPort,omitempty"`
 }
 
 // CreateProjectDomainRef is a domain nested under networkSettings.
@@ -741,6 +746,30 @@ func ApplyCreateProjectDefaults(req *CreateProjectRequest) {
 			break
 		}
 	}
+	// Thin networkSettings from MCP often omit Public/AutoHTTPS/Default/Port;
+	// control plane also fills these, but send complete web-app defaults here.
+	trueVal := true
+	for i := range req.NetworkSettings {
+		n := &req.NetworkSettings[i]
+		if strings.TrimSpace(n.Protocol) == "" {
+			n.Protocol = "HTTP"
+		}
+		if n.Port <= 0 {
+			n.Port = 8080
+		}
+		if n.Public == nil {
+			v := trueVal
+			n.Public = &v
+		}
+		if n.AutoHTTPS == nil {
+			v := trueVal
+			n.AutoHTTPS = &v
+		}
+		if n.Default == nil && i == 0 {
+			v := trueVal
+			n.Default = &v
+		}
+	}
 	if !hasPortEnv {
 		for i := range req.NetworkSettings {
 			if req.NetworkSettings[i].Port > 0 {
@@ -752,15 +781,42 @@ func ApplyCreateProjectDefaults(req *CreateProjectRequest) {
 			}
 		}
 	}
-	for i := range req.NetworkSettings {
-		if strings.TrimSpace(req.NetworkSettings[i].Protocol) == "" {
-			req.NetworkSettings[i].Protocol = "HTTP"
-		}
-	}
+	// Normalize github.com URLs to owner/repo so control plane matches dashboard.
+	req.Repository = normalizeCreateRepository(req.Repository, req.Username)
 	if strings.TrimSpace(req.CommitURL) == "" && strings.TrimSpace(req.Repository) != "" {
 		// Soft default for API clients; dashboard usually sends the real commit URL.
 		req.CommitURL = strings.TrimSpace(req.Repository)
 	}
+}
+
+// normalizeCreateRepository turns full git HTTPS URLs into owner/repo form when
+// possible so the control plane matches dashboard create payloads.
+func normalizeCreateRepository(repository, username string) string {
+	repo := strings.TrimSpace(repository)
+	if repo == "" {
+		return repo
+	}
+	// Already owner/repo
+	if !strings.Contains(repo, "://") && !strings.HasPrefix(repo, "git@") {
+		return strings.TrimSuffix(repo, ".git")
+	}
+	// https://github.com/owner/repo(.git)
+	for _, prefix := range []string{
+		"https://github.com/", "http://github.com/",
+		"https://gitlab.com/", "http://gitlab.com/",
+		"https://bitbucket.org/", "http://bitbucket.org/",
+	} {
+		if strings.HasPrefix(strings.ToLower(repo), prefix) {
+			path := repo[len(prefix):]
+			path = strings.TrimSuffix(path, ".git")
+			path = strings.Trim(path, "/")
+			if path != "" {
+				return path
+			}
+		}
+	}
+	_ = username
+	return repo
 }
 
 // Create creates a new project via POST /project/create.
