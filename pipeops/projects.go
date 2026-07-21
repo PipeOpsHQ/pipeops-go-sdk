@@ -1053,6 +1053,70 @@ func (s *ProjectService) fetchLogs(ctx context.Context, projectUUID string, opts
 	return logsResp, resp, nil
 }
 
+// BuildLogsOptions controls GET /project/build-logs/:uuid.
+// Logs come from Firebase pipeops-build-logs (same source as the dashboard).
+type BuildLogsOptions struct {
+	// WorkspaceUUID scopes the request (multi-workspace tokens).
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+	// DeploymentUUID selects a deployment; when empty the control plane uses the latest.
+	DeploymentUUID string `url:"deployment_uuid,omitempty"`
+	// BuildSha overrides the deployment's build_sha when known.
+	BuildSha string `url:"build_sha,omitempty"`
+	// Stage filters to git | build | deploy when set.
+	Stage string `url:"stage,omitempty"`
+	// Limit caps the number of log lines (default 2000, max 5000).
+	Limit int `url:"limit,omitempty"`
+}
+
+// BuildLogsResponse is the control-plane build-logs payload.
+type BuildLogsResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    struct {
+		ProjectUUID    string                   `json:"project_uuid"`
+		DeploymentUUID string                   `json:"deployment_uuid"`
+		BuildSha       string                   `json:"build_sha"`
+		Status         string                   `json:"status"`
+		CurrentStage   string                   `json:"current_stage"`
+		Source         string                   `json:"source"`
+		Count          int                      `json:"count"`
+		Logs           []map[string]interface{} `json:"logs"`
+	} `json:"data"`
+}
+
+// GetBuildLogs fetches deployment build logs (Firebase pipeops-build-logs) for
+// automation/MCP. Prefer this over client-side Firebase for service tokens.
+func (s *ProjectService) GetBuildLogs(ctx context.Context, projectUUID string, opts *BuildLogsOptions) (*BuildLogsResponse, *http.Response, error) {
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+	if opts == nil {
+		opts = &BuildLogsOptions{}
+	}
+	if strings.TrimSpace(opts.WorkspaceUUID) == "" {
+		if ws, _, err := firstWorkspaceUUID(ctx, s.client); err == nil {
+			opts.WorkspaceUUID = ws
+		}
+	}
+
+	u := fmt.Sprintf("project/build-logs/%s", url.PathEscape(projectUUID))
+	u, err := addOptions(u, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(BuildLogsResponse)
+	resp, err := s.client.Do(ctx, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
 // GitHubBranchesRequest represents a request to fetch GitHub branches.
 type GitHubBranchesRequest struct {
 	Repository   string `json:"repository,omitempty"`
