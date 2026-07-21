@@ -1086,6 +1086,10 @@ type BuildLogsResponse struct {
 
 // GetBuildLogs fetches deployment build logs (Firebase pipeops-build-logs) for
 // automation/MCP. Prefer this over client-side Firebase for service tokens.
+//
+// Do not invent a workspace_uuid: on production, attaching the wrong
+// workspace_uuid can return a Cloudflare/console 403 HTML page. Only send it
+// when the caller set BuildLogsOptions.WorkspaceUUID.
 func (s *ProjectService) GetBuildLogs(ctx context.Context, projectUUID string, opts *BuildLogsOptions) (*BuildLogsResponse, *http.Response, error) {
 	projectUUID = strings.TrimSpace(projectUUID)
 	if projectUUID == "" {
@@ -1094,14 +1098,18 @@ func (s *ProjectService) GetBuildLogs(ctx context.Context, projectUUID string, o
 	if opts == nil {
 		opts = &BuildLogsOptions{}
 	}
-	if strings.TrimSpace(opts.WorkspaceUUID) == "" {
-		if ws, _, err := firstWorkspaceUUID(ctx, s.client); err == nil {
-			opts.WorkspaceUUID = ws
-		}
+
+	// Only include query fields that are set (avoid empty workspace_uuid).
+	query := &BuildLogsOptions{
+		WorkspaceUUID:  strings.TrimSpace(opts.WorkspaceUUID),
+		DeploymentUUID: strings.TrimSpace(opts.DeploymentUUID),
+		BuildSha:       strings.TrimSpace(opts.BuildSha),
+		Stage:          strings.TrimSpace(opts.Stage),
+		Limit:          opts.Limit,
 	}
 
 	u := fmt.Sprintf("project/build-logs/%s", url.PathEscape(projectUUID))
-	u, err := addOptions(u, opts)
+	u, err := addOptions(u, query)
 	if err != nil {
 		return nil, nil, err
 	}
