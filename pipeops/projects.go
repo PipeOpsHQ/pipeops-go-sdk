@@ -784,18 +784,21 @@ func ApplyCreateProjectDefaults(req *CreateProjectRequest) {
 	// Ensure repository is a cloneable HTTPS URL. The runner clones RepoUrl as-is;
 	// dashboard always sends full https://github.com/owner/repo URLs. Short
 	// owner/repo form from thin clients is expanded based on source provider.
-	req.Repository = canonicalizeCreateRepository(req.Repository, req.Source)
+	req.Repository = CanonicalizeRepository(req.Repository, req.Source)
 	if strings.TrimSpace(req.CommitURL) == "" && strings.TrimSpace(req.Repository) != "" {
 		// Soft default for API clients; dashboard usually sends the real commit URL.
 		req.CommitURL = strings.TrimSpace(req.Repository)
 	}
 }
 
-// canonicalizeCreateRepository returns a cloneable git repository URL.
-// Full HTTPS/SSH URLs are kept (trailing .git stripped). Short owner/repo form
-// is expanded using the VCS source host. Azure DevOps short form is left as-is
-// because clone URLs are not owner/repo shaped.
-func canonicalizeCreateRepository(repository, source string) string {
+// CanonicalizeRepository returns a cloneable git repository URL for create and
+// source-control updates. Full HTTPS/SSH URLs are kept (trailing .git stripped).
+// Short owner/repo form is expanded using the VCS source host (default github).
+// Azure DevOps short form is left as-is because clone URLs are not owner/repo shaped.
+//
+// Callers that build create/update bodies outside ProjectService.Create should
+// use this so the runner never receives an uncloneable short-form repository.
+func CanonicalizeRepository(repository, source string) string {
 	repo := strings.TrimSpace(repository)
 	if repo == "" {
 		return repo
@@ -822,6 +825,11 @@ func canonicalizeCreateRepository(repository, source string) string {
 		// github (default) and unknown sources → GitHub host.
 		return "https://github.com/" + path
 	}
+}
+
+// canonicalizeCreateRepository is retained as an alias for older internal call sites/tests.
+func canonicalizeCreateRepository(repository, source string) string {
+	return CanonicalizeRepository(repository, source)
 }
 
 // Create creates a new project via POST /project/create.
