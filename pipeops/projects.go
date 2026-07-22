@@ -781,42 +781,47 @@ func ApplyCreateProjectDefaults(req *CreateProjectRequest) {
 			}
 		}
 	}
-	// Normalize github.com URLs to owner/repo so control plane matches dashboard.
-	req.Repository = normalizeCreateRepository(req.Repository, req.Username)
+	// Ensure repository is a cloneable HTTPS URL. The runner clones RepoUrl as-is;
+	// dashboard always sends full https://github.com/owner/repo URLs. Short
+	// owner/repo form from thin clients is expanded based on source provider.
+	req.Repository = canonicalizeCreateRepository(req.Repository, req.Source)
 	if strings.TrimSpace(req.CommitURL) == "" && strings.TrimSpace(req.Repository) != "" {
 		// Soft default for API clients; dashboard usually sends the real commit URL.
 		req.CommitURL = strings.TrimSpace(req.Repository)
 	}
 }
 
-// normalizeCreateRepository turns full git HTTPS URLs into owner/repo form when
-// possible so the control plane matches dashboard create payloads.
-func normalizeCreateRepository(repository, username string) string {
+// canonicalizeCreateRepository returns a cloneable git repository URL.
+// Full HTTPS/SSH URLs are kept (trailing .git stripped). Short owner/repo form
+// is expanded using the VCS source host. Azure DevOps short form is left as-is
+// because clone URLs are not owner/repo shaped.
+func canonicalizeCreateRepository(repository, source string) string {
 	repo := strings.TrimSpace(repository)
 	if repo == "" {
 		return repo
 	}
-	// Already owner/repo
-	if !strings.Contains(repo, "://") && !strings.HasPrefix(repo, "git@") {
+	// Already a URL or SSH form — keep it (normalize trailing .git).
+	if strings.Contains(repo, "://") || strings.HasPrefix(repo, "git@") {
 		return strings.TrimSuffix(repo, ".git")
 	}
-	// https://github.com/owner/repo(.git)
-	for _, prefix := range []string{
-		"https://github.com/", "http://github.com/",
-		"https://gitlab.com/", "http://gitlab.com/",
-		"https://bitbucket.org/", "http://bitbucket.org/",
-	} {
-		if strings.HasPrefix(strings.ToLower(repo), prefix) {
-			path := repo[len(prefix):]
-			path = strings.TrimSuffix(path, ".git")
-			path = strings.Trim(path, "/")
-			if path != "" {
-				return path
-			}
-		}
+
+	path := strings.Trim(strings.TrimSuffix(repo, ".git"), "/")
+	if path == "" {
+		return repo
 	}
-	_ = username
-	return repo
+
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "gitlab":
+		return "https://gitlab.com/" + path
+	case "bitbucket":
+		return "https://bitbucket.org/" + path
+	case "azuredevops":
+		// Azure DevOps clone URLs are org/project/_git/repo — not expandable here.
+		return path
+	default:
+		// github (default) and unknown sources → GitHub host.
+		return "https://github.com/" + path
+	}
 }
 
 // Create creates a new project via POST /project/create.

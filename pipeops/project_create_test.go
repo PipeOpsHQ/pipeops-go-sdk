@@ -143,13 +143,28 @@ func TestProjectService_Create_ControllerContract(t *testing.T) {
 	}
 }
 
-func TestNormalizeCreateRepository(t *testing.T) {
+func TestCanonicalizeCreateRepository(t *testing.T) {
 	t.Parallel()
-	got := normalizeCreateRepository("https://github.com/9trocode/pipeops-hello-app", "9trocode")
-	if got != "9trocode/pipeops-hello-app" {
-		t.Fatalf("got %q", got)
+	// Full URLs must stay cloneable (dashboard shape).
+	got := canonicalizeCreateRepository("https://github.com/9trocode/pipeops-hello-app", "github")
+	if got != "https://github.com/9trocode/pipeops-hello-app" {
+		t.Fatalf("full github URL: got %q", got)
 	}
-	if normalizeCreateRepository("acme/app", "") != "acme/app" {
-		t.Fatal("owner/repo should pass through")
+	got = canonicalizeCreateRepository("https://github.com/acme/app.git", "github")
+	if got != "https://github.com/acme/app" {
+		t.Fatalf("strip .git: got %q", got)
+	}
+	// Short owner/repo must expand — runner clones RepoUrl as-is.
+	if canonicalizeCreateRepository("acme/app", "github") != "https://github.com/acme/app" {
+		t.Fatal("github short form should expand")
+	}
+	if canonicalizeCreateRepository("acme/app", "") != "https://github.com/acme/app" {
+		t.Fatal("empty source defaults to github host")
+	}
+	if canonicalizeCreateRepository("acme/app", "gitlab") != "https://gitlab.com/acme/app" {
+		t.Fatal("gitlab short form should expand")
+	}
+	if canonicalizeCreateRepository("acme/app", "bitbucket") != "https://bitbucket.org/acme/app" {
+		t.Fatal("bitbucket short form should expand")
 	}
 }
