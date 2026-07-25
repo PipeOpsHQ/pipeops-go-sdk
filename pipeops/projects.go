@@ -1532,11 +1532,25 @@ func (s *ProjectService) UpdateSecurityPolicy(ctx context.Context, projectUUID s
 	return out, resp, nil
 }
 
+// ProjectEnvVariablesOptions scopes env-var fetch. Prefer an explicit workspace
+// when known; the bare project path works for most accounts without it.
+type ProjectEnvVariablesOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+}
+
 // GetEnvVariables retrieves environment variables for a project.
-func (s *ProjectService) GetEnvVariables(ctx context.Context, projectUUID string) (*EnvVariablesResponse, *http.Response, error) {
+// Do not auto-pick firstWorkspaceUUID: that often picks a personal workspace
+// and returns 403 for projects in another workspace. Only attach workspace_uuid
+// when the caller supplies it, then fall back to the unscoped path.
+func (s *ProjectService) GetEnvVariables(ctx context.Context, projectUUID string, opts ...*ProjectEnvVariablesOptions) (*EnvVariablesResponse, *http.Response, error) {
 	u := fmt.Sprintf("project/settings/env/%s", projectUUID)
 
-	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+	var workspaceUUID string
+	if len(opts) > 0 && opts[0] != nil {
+		workspaceUUID = strings.TrimSpace(opts[0].WorkspaceUUID)
+	}
+
+	if workspaceUUID != "" {
 		withWorkspace, err := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID})
 		if err != nil {
 			return nil, nil, err
@@ -1552,7 +1566,8 @@ func (s *ProjectService) GetEnvVariables(ctx context.Context, projectUUID string
 		if err == nil {
 			return envResp, resp, nil
 		}
-		if !isNotFound(err) {
+		// Fall back without workspace on tenancy/not-found errors.
+		if !isNotFound(err) && !isForbidden(err) {
 			return nil, resp, err
 		}
 	}

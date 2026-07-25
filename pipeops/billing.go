@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // BillingService handles communication with the billing related
@@ -669,9 +670,24 @@ func (s *BillingService) GetCurrentSubscription(ctx context.Context) (*Subscript
 	return subResp, resp, nil
 }
 
+// PlansListOptions filters billing plan listing.
+type PlansListOptions struct {
+	// Location is an ISO country code (e.g. US). Required by the control plane
+	// for currency/pricing; defaults to US when empty.
+	Location string `url:"location,omitempty"`
+}
+
 // GetPlans retrieves available billing plans.
-func (s *BillingService) GetPlans(ctx context.Context) (*PlansResponse, *http.Response, error) {
-	u := "billing/plans"
+// Defaults location=US so MCP/CLI succeed without an explicit country.
+func (s *BillingService) GetPlans(ctx context.Context, opts ...*PlansListOptions) (*PlansResponse, *http.Response, error) {
+	location := "US"
+	if len(opts) > 0 && opts[0] != nil && strings.TrimSpace(opts[0].Location) != "" {
+		location = strings.TrimSpace(opts[0].Location)
+	}
+	u, err := addOptions("billing/plans", &PlansListOptions{Location: location})
+	if err != nil {
+		return nil, nil, err
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {

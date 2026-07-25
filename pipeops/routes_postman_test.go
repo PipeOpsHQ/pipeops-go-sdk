@@ -418,21 +418,6 @@ func TestProjectService_SettingsRoutes_IncludeWorkspaceUUID(t *testing.T) {
 			},
 		},
 		{
-			name:   "GetEnvVariables",
-			method: http.MethodGet,
-			path:   "/project/settings/env/p1",
-			run: func(ctx context.Context, client *Client) error {
-				_, _, err := client.Projects.GetEnvVariables(ctx, "p1")
-				return err
-			},
-			response: func(t *testing.T, w http.ResponseWriter) {
-				w.Header().Set("Content-Type", "application/json")
-				if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"env_variables":[]}}`)); err != nil {
-					t.Fatalf("write response error: %v", err)
-				}
-			},
-		},
-		{
 			name:   "CreateNetworkPolicy",
 			method: http.MethodPost,
 			path:   "/project/settings/p1/network-policy",
@@ -1143,5 +1128,65 @@ func TestMiscAndBillingAndAddons_RouteFixes(t *testing.T) {
 	_, _, err = client.Billing.UpdateCard(context.Background(), "c1", &AddCardRequest{Token: "tok"})
 	if err != nil {
 		t.Fatalf("UpdateCard error: %v", err)
+	}
+}
+
+func TestProjectService_GetEnvVariables_NoDefaultWorkspace(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want GET", r.Method)
+		}
+		if r.URL.Path != "/project/settings/env/p1" {
+			t.Fatalf("path = %s, want /project/settings/env/p1", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("workspace_uuid"); got != "" {
+			t.Fatalf("workspace_uuid = %q, want empty (no first-workspace default)", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"env_variables":[{"key":"PORT","value":"8080"}]}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	resp, _, err := client.Projects.GetEnvVariables(context.Background(), "p1")
+	if err != nil {
+		t.Fatalf("GetEnvVariables: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected response")
+	}
+}
+
+func TestProjectService_GetEnvVariables_ExplicitWorkspace(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/project/settings/env/p1" {
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("workspace_uuid"); got != "ws-explicit" {
+			t.Fatalf("workspace_uuid = %q, want ws-explicit", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{"status":"success","message":"ok","data":{"env_variables":[]}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	_, _, err = client.Projects.GetEnvVariables(context.Background(), "p1", &ProjectEnvVariablesOptions{WorkspaceUUID: "ws-explicit"})
+	if err != nil {
+		t.Fatalf("GetEnvVariables: %v", err)
 	}
 }
