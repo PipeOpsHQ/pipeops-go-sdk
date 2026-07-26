@@ -38,7 +38,9 @@ func TestAddOnServiceDeploy_SendsNestedAndThinShape(t *testing.T) {
 			t.Fatalf("Environment: %#v", body["Environment"])
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"message":"deploying","data":{"deployment":{"UID":"dep-1"}}}`))
+		if _, err := w.Write([]byte(`{"success":true,"message":"deploying","data":{"deployment":{"UID":"dep-1"}}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	}))
 	defer server.Close()
 
