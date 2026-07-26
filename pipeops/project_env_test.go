@@ -38,7 +38,9 @@ func TestUpdateEnvVariables_SendsCamelCaseAndMergeQuery(t *testing.T) {
 			t.Fatalf("envVariables = %#v", body["envVariables"])
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"message":"ok","data":[{"key":"PORT","value":"8080"}]}`))
+		if _, err := w.Write([]byte(`{"success":true,"message":"ok","data":[{"key":"PORT","value":"8080"}]}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	}))
 	defer server.Close()
 

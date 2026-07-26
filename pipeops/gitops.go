@@ -164,8 +164,9 @@ type GitOpsSyncHistoryEntry struct {
 
 // GitOpsListOptions filters list/history pagination.
 type GitOpsListOptions struct {
-	Page  int `url:"page,omitempty"`
-	Limit int `url:"limit,omitempty"`
+	Page          int    `url:"page,omitempty"`
+	Limit         int    `url:"limit,omitempty"`
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
 }
 
 // GitOpsConfigResponse is a single config envelope.

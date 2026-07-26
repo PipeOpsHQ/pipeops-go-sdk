@@ -44,6 +44,9 @@ func TestBillingServiceControllerResponseCompatibility(t *testing.T) {
 			case "/billing/portal":
 				return billingJSONResponse(r, http.StatusOK, `{"data":"https://billing.example/session","message":"portal created successfully","success":true}`), nil
 			case "/billing/plans":
+				if got := r.URL.Query().Get("location"); got != "US" {
+					t.Fatalf("location = %q, want US", got)
+				}
 				return billingJSONResponse(r, http.StatusOK, `{"data":[{"Name":"Custom","Price":550000,"Period":"monthly","Currency":"NGN","ConcurrentBuild":1,"FreeTrialDays":0}],"message":"ok","success":true}`), nil
 			case "/billing/workspace/cards":
 				if got := r.URL.Query().Get("workspace_uuid"); got != "w1" {

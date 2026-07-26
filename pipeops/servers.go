@@ -401,6 +401,14 @@ func isNotFound(err error) bool {
 	return apiErr.Response.StatusCode == http.StatusNotFound
 }
 
+func isForbidden(err error) bool {
+	apiErr, ok := err.(*ErrorResponse)
+	if !ok || apiErr.Response == nil {
+		return false
+	}
+	return apiErr.Response.StatusCode == http.StatusForbidden
+}
+
 // ServiceToken represents a service account token.
 type ServiceToken struct {
 	ID          string     `json:"id,omitempty"`
