@@ -876,22 +876,60 @@ type UpdateProjectRequest struct {
 	Port         int    `json:"port,omitempty"`
 }
 
-// Update updates a project.
+// projectNameSettingsPayload is POST /project/settings/name/:uuid body.
+// Controller GeneralSettings: projectName + optional networkPort for port changes.
+type projectNameSettingsPayload struct {
+	ProjectName string `json:"projectName,omitempty"`
+	NetworkPort int    `json:"networkPort,omitempty"`
+}
+
+// Update updates project name/port via the control-plane settings endpoints.
+// There is no PUT /project/:uuid route; the dashboard uses settings/name for
+// rename and port updates. Description is not stored by the API today.
 func (s *ProjectService) Update(ctx context.Context, projectUUID string, req *UpdateProjectRequest) (*ProjectResponse, *http.Response, error) {
-	u := fmt.Sprintf("project/%s", projectUUID)
-
-	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
-	if err != nil {
-		return nil, nil, err
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, nil, errors.New("project UUID cannot be empty")
+	}
+	if req == nil {
+		return nil, nil, errors.New("update request cannot be nil")
 	}
 
-	projectResp := new(ProjectResponse)
-	resp, err := s.client.Do(ctx, httpReq, projectResp)
-	if err != nil {
-		return nil, resp, err
+	name := strings.TrimSpace(req.Name)
+	// Description is not supported by control plane general settings; if only
+	// description is set, surface a clear client error instead of 404.
+	if name == "" && req.Port == 0 && strings.TrimSpace(req.Description) != "" {
+		return nil, nil, errors.New("project description cannot be updated via API; use name and/or port")
+	}
+	if name == "" && req.Port == 0 && strings.TrimSpace(req.BuildCommand) == "" && strings.TrimSpace(req.StartCommand) == "" {
+		return nil, nil, errors.New("at least one of name or port is required for update")
 	}
 
-	return projectResp, resp, nil
+	// Prefer name settings for name/port (matches dashboard SetNameSettings).
+	if name != "" || req.Port > 0 {
+		u := fmt.Sprintf("project/settings/name/%s", url.PathEscape(projectUUID))
+		payload := &projectNameSettingsPayload{
+			ProjectName: name,
+			NetworkPort: req.Port,
+		}
+		if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil && workspaceUUID != "" {
+			if withWorkspace, optErr := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); optErr == nil {
+				u = withWorkspace
+			}
+		}
+		httpReq, err := s.client.NewRequest(http.MethodPost, u, payload)
+		if err != nil {
+			return nil, nil, err
+		}
+		projectResp := new(ProjectResponse)
+		resp, err := s.client.Do(ctx, httpReq, projectResp)
+		if err != nil {
+			return nil, resp, err
+		}
+		return projectResp, resp, nil
+	}
+
+	return nil, nil, errors.New("build_command/start_command updates are not supported via update_project; use deploy settings tools")
 }
 
 // Delete deletes a project.
@@ -1654,30 +1692,35 @@ func (s *ProjectService) Deploy(ctx context.Context, projectUUID string, opts ..
 	return resp, err
 }
 
-// Restart restarts a project.
-func (s *ProjectService) Restart(ctx context.Context, projectUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("project/%s/restart", projectUUID)
-
-	req, err := s.client.NewRequest(http.MethodPost, u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.client.Do(ctx, req, nil)
-	return resp, err
+// Restart restarts a project by triggering a thin redeploy (no rebuild flags).
+// Control plane has no POST /project/:uuid/restart route; redeploy rolls pods.
+func (s *ProjectService) Restart(ctx context.Context, projectUUID string, opts ...*ProjectDeployOptions) (*http.Response, error) {
+	return s.Deploy(ctx, projectUUID, opts...)
 }
 
-// Stop stops a project.
-func (s *ProjectService) Stop(ctx context.Context, projectUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("project/%s/stop", projectUUID)
+// projectReplicationPayload is POST /project/settings/replication/:uuid.
+type projectReplicationPayload struct {
+	Replicas int `json:"replicas"`
+}
 
-	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+// Stop stops a project by scaling replicas to 0 (dashboard pause semantics).
+// Control plane has no POST /project/:uuid/stop route.
+func (s *ProjectService) Stop(ctx context.Context, projectUUID string) (*http.Response, error) {
+	projectUUID = strings.TrimSpace(projectUUID)
+	if projectUUID == "" {
+		return nil, errors.New("project UUID cannot be empty")
+	}
+	u := fmt.Sprintf("project/settings/replication/%s", url.PathEscape(projectUUID))
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil && workspaceUUID != "" {
+		if withWorkspace, optErr := addOptions(u, &workspaceUUIDOptions{WorkspaceUUID: workspaceUUID}); optErr == nil {
+			u = withWorkspace
+		}
+	}
+	req, err := s.client.NewRequest(http.MethodPost, u, &projectReplicationPayload{Replicas: 0})
 	if err != nil {
 		return nil, err
 	}
-
-	resp, err := s.client.Do(ctx, req, nil)
-	return resp, err
+	return s.client.Do(ctx, req, nil)
 }
 
 // ProjectDeploymentMeta represents pagination metadata for project deployment endpoints.
