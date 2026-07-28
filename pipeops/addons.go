@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -138,12 +139,60 @@ type AddOnDeploymentsResponse struct {
 }
 
 // AddOnDeploymentResponse represents a single add-on deployment response.
+// Deploy endpoints may return data as a single object, a nested deployment, or
+// an array of deployments — UnmarshalJSON normalizes these shapes.
 type AddOnDeploymentResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
+	Status  string          `json:"status"`
+	Message string          `json:"message"`
+	Success bool            `json:"success,omitempty"`
+	Data    AddOnDeployment `json:"data"`
+}
+
+// UnmarshalJSON accepts:
+//
+//	{"data":{...deployment fields...}}
+//	{"data":{"deployment":{...}}}
+//	{"data":[{...}, ...]}  // POST /addons/deploy plural
+func (r *AddOnDeploymentResponse) UnmarshalJSON(b []byte) error {
+	type alias struct {
+		Status  string          `json:"status"`
+		Message string          `json:"message"`
+		Success bool            `json:"success"`
+		Data    json.RawMessage `json:"data"`
+	}
+	var raw alias
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	r.Status = raw.Status
+	r.Message = raw.Message
+	r.Success = raw.Success
+	if len(raw.Data) == 0 || string(raw.Data) == "null" {
+		return nil
+	}
+	// Array form
+	var arr []AddOnDeployment
+	if err := json.Unmarshal(raw.Data, &arr); err == nil {
+		if len(arr) > 0 {
+			r.Data = arr[0]
+		}
+		return nil
+	}
+	// Nested deployment form
+	var nested struct {
 		Deployment AddOnDeployment `json:"deployment"`
-	} `json:"data"`
+	}
+	if err := json.Unmarshal(raw.Data, &nested); err == nil && (nested.Deployment.UID != "" || nested.Deployment.Name != "") {
+		r.Data = nested.Deployment
+		return nil
+	}
+	// Flat deployment object
+	var dep AddOnDeployment
+	if err := json.Unmarshal(raw.Data, &dep); err != nil {
+		return err
+	}
+	r.Data = dep
+	return nil
 }
 
 // DeployAddOnRequest represents a request to deploy an add-on.
@@ -222,7 +271,9 @@ func (s *AddOnService) Deploy(ctx context.Context, req *DeployAddOnRequest) (*Ad
 		},
 	}
 
-	u := "addons/deploy"
+	// Middleware CheckTeamMemberAccess requires workspace as query param
+	// (body Workspace alone yields 400 "invalid workspace").
+	u := "addons/deploy?workspace=" + url.QueryEscape(workspace)
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, body)
 	if err != nil {
 		return nil, nil, err
@@ -276,21 +327,33 @@ func (s *AddOnService) ListDeployments(ctx context.Context, opts ...*ListDeploym
 }
 
 // GetDeployment fetches an add-on deployment by UUID.
-func (s *AddOnService) GetDeployment(ctx context.Context, deploymentUUID string) (*AddOnDeploymentResponse, *http.Response, error) {
-	u := fmt.Sprintf("addons/deployments/%s", deploymentUUID)
-
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, nil, err
+// Control plane has no GET /addons/deployments/:id; resolve from overview list.
+func (s *AddOnService) GetDeployment(ctx context.Context, deploymentUUID string, opts ...*ListDeploymentsOptions) (*AddOnDeploymentResponse, *http.Response, error) {
+	deploymentUUID = strings.TrimSpace(deploymentUUID)
+	if deploymentUUID == "" {
+		return nil, nil, errors.New("deployment UUID cannot be empty")
 	}
-
-	deployResp := new(AddOnDeploymentResponse)
-	resp, err := s.client.Do(ctx, req, deployResp)
-	if err != nil {
-		return nil, resp, err
+	listOpts := &ListDeploymentsOptions{}
+	if len(opts) > 0 && opts[0] != nil {
+		listOpts = opts[0]
 	}
-
-	return deployResp, resp, nil
+	listResp, httpResp, err := s.ListDeployments(ctx, listOpts)
+	if err != nil {
+		return nil, httpResp, err
+	}
+	needle := strings.ToLower(deploymentUUID)
+	for _, d := range listResp.Data {
+		id := strings.ToLower(strings.TrimSpace(d.UID))
+		if id == needle || strings.ToLower(strings.TrimSpace(d.DeploymentName)) == needle || strings.ToLower(strings.TrimSpace(d.Name)) == needle {
+			return &AddOnDeploymentResponse{
+				Status:  "success",
+				Message: "ok",
+				Success: true,
+				Data:    d,
+			}, httpResp, nil
+		}
+	}
+	return nil, httpResp, fmt.Errorf("addon deployment %q not found in workspace deployments overview", deploymentUUID)
 }
 
 // DeleteDeployment deletes an add-on deployment.
@@ -541,9 +604,27 @@ type DeploymentConfigsResponse struct {
 	} `json:"data"`
 }
 
+// ViewDeploymentConfigsOptions scopes config view to a workspace (required by
+// AddonPermissionMiddleware: query "workspace").
+type ViewDeploymentConfigsOptions struct {
+	WorkspaceUUID string `url:"workspace,omitempty"`
+}
+
 // ViewDeploymentConfigs views deployment configurations.
-func (s *AddOnService) ViewDeploymentConfigs(ctx context.Context, addonUUID string) (*DeploymentConfigsResponse, *http.Response, error) {
-	u := fmt.Sprintf("addons/deployments/%s/view/configs", addonUUID)
+func (s *AddOnService) ViewDeploymentConfigs(ctx context.Context, addonUUID string, opts ...*ViewDeploymentConfigsOptions) (*DeploymentConfigsResponse, *http.Response, error) {
+	u := fmt.Sprintf("addons/deployments/%s/view/configs", strings.TrimSpace(addonUUID))
+	workspaceUUID := ""
+	if len(opts) > 0 && opts[0] != nil {
+		workspaceUUID = strings.TrimSpace(opts[0].WorkspaceUUID)
+	}
+	if workspaceUUID == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspaceUUID = ws
+		}
+	}
+	if workspaceUUID != "" {
+		u = u + "?workspace=" + url.QueryEscape(workspaceUUID)
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -561,11 +642,11 @@ func (s *AddOnService) ViewDeploymentConfigs(ctx context.Context, addonUUID stri
 
 // AddDomain adds a domain to an add-on.
 func (s *AddOnService) AddDomain(ctx context.Context, addonUUID string, req *DomainRequest) (*http.Response, error) {
-	u := fmt.Sprintf("addons/domains/%s", addonUUID)
-	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
-		if withWorkspace, err := addOptions(u, &addonWorkspaceOptions{Workspace: workspaceUUID}); err == nil {
-			u = withWorkspace
-		}
+	// Controller: POST /addons/:id/domain (not /addons/domains/:id).
+	u := fmt.Sprintf("addons/%s/domain", strings.TrimSpace(addonUUID))
+	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil && workspaceUUID != "" {
+		// AddonPermissionMiddleware requires query "workspace".
+		u = u + "?workspace=" + url.QueryEscape(workspaceUUID)
 	}
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
