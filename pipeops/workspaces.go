@@ -15,25 +15,29 @@ type WorkspaceService struct {
 
 // Workspace represents a PipeOps workspace.
 type Workspace struct {
-	ID          string     `json:"id,omitempty"`
-	UUID        string     `json:"uuid,omitempty"`
-	Name        string     `json:"name,omitempty"`
-	Description string     `json:"description,omitempty"`
-	OwnerID     string     `json:"owner_id,omitempty"`
-	TeamID      string     `json:"team_id,omitempty"`
-	CreatedAt   *Timestamp `json:"created_at,omitempty"`
-	UpdatedAt   *Timestamp `json:"updated_at,omitempty"`
+	ID           string     `json:"id,omitempty"`
+	UUID         string     `json:"uuid,omitempty"`
+	Name         string     `json:"name,omitempty"`
+	Description  string     `json:"description,omitempty"`
+	BillingEmail string     `json:"billing_email,omitempty"`
+	OwnerID      string     `json:"owner_id,omitempty"`
+	TeamID       string     `json:"team_id,omitempty"`
+	CreatedAt    *Timestamp `json:"created_at,omitempty"`
+	UpdatedAt    *Timestamp `json:"updated_at,omitempty"`
 }
 
 func (w *Workspace) UnmarshalJSON(data []byte) error {
 	type workspaceWire struct {
 		ID jsonID `json:"id,omitempty"`
 
-		UUID        string `json:"uuid,omitempty"`
-		Name        string `json:"name,omitempty"`
-		Description string `json:"description,omitempty"`
-		OwnerID     string `json:"owner_id,omitempty"`
-		TeamID      string `json:"team_id,omitempty"`
+		UUID         string `json:"uuid,omitempty"`
+		Name         string `json:"name,omitempty"`
+		Description  string `json:"description,omitempty"`
+		BillingEmail string `json:"billing_email,omitempty"`
+		// Control plane serializes the model field without a snake_case tag.
+		BillingEmailAlt string `json:"BillingEmail,omitempty"`
+		OwnerID         string `json:"owner_id,omitempty"`
+		TeamID          string `json:"team_id,omitempty"`
 
 		CreatedAt    *Timestamp `json:"created_at,omitempty"`
 		UpdatedAt    *Timestamp `json:"updated_at,omitempty"`
@@ -50,6 +54,10 @@ func (w *Workspace) UnmarshalJSON(data []byte) error {
 	w.UUID = tmp.UUID
 	w.Name = tmp.Name
 	w.Description = tmp.Description
+	w.BillingEmail = tmp.BillingEmail
+	if w.BillingEmail == "" {
+		w.BillingEmail = tmp.BillingEmailAlt
+	}
 	w.OwnerID = tmp.OwnerID
 	w.TeamID = tmp.TeamID
 
@@ -225,8 +233,9 @@ func (s *WorkspaceService) Delete(ctx context.Context, workspaceUUID string) (*h
 }
 
 // SetBillingEmailRequest represents a request to set billing email.
+// Control plane binds json:"BillingEmail" (PascalCase), not "email".
 type SetBillingEmailRequest struct {
-	Email string `json:"email"`
+	Email string `json:"BillingEmail"`
 }
 
 // SetBillingEmail sets the billing email for a workspace.
