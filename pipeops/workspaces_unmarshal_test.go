@@ -111,7 +111,8 @@ func TestWorkspaceService_SetBillingEmail_UsesPascalCaseJSON(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SetBillingEmail error: %v", err)
 	}
-	if got, _ := body["BillingEmail"].(string); got != "billing@example.com" {
+	got, ok := body["BillingEmail"].(string)
+	if !ok || got != "billing@example.com" {
 		t.Fatalf("body = %#v, want BillingEmail=billing@example.com", body)
 	}
 	if _, hasEmail := body["email"]; hasEmail {
