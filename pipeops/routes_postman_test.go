@@ -1089,7 +1089,7 @@ func TestMiscAndBillingAndAddons_RouteFixes(t *testing.T) {
 				t.Fatalf("write response error: %v", writeErr)
 			}
 			return
-		case r.Method == http.MethodPost && r.URL.Path == "/addons/domains/a1":
+		case r.Method == http.MethodPost && r.URL.Path == "/addons/a1/domain":
 			if got := r.URL.Query().Get("workspace"); got != "w1" {
 				t.Fatalf("workspace = %q, want %q", got, "w1")
 			}
