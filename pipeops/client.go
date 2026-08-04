@@ -118,6 +118,7 @@ type Client struct {
 	Volumes             *VolumeService
 	GitOps              *GitOpsService
 	ProjectGroups       *ProjectGroupService
+	Sandboxes           *SandboxService
 }
 
 // newHTTPClient creates a properly configured HTTP client for production use.
@@ -252,6 +253,7 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	c.Volumes = &VolumeService{client: c}
 	c.GitOps = &GitOpsService{client: c}
 	c.ProjectGroups = &ProjectGroupService{client: c}
+	c.Sandboxes = &SandboxService{client: c}
 
 	return c, nil
 }

@@ -19,6 +19,7 @@ The PipeOps Go SDK is organized into specialized services, each handling a speci
 | **Users** | User profile and settings | [Guide](users.md) |
 | **CloudProviders** | Cloud provider integration | [Guide](cloudproviders.md) |
 | **ServiceTokens** | Service account token management | [Guide](servicetokens.md) |
+| **Sandboxes** | Rexec sandboxes BFF (lifecycle, sessions, usage) | [Guide](../sandboxes.md) |
 | **Misc** | Miscellaneous utilities | [Guide](misc.md) |
 
 ## Service Architecture
