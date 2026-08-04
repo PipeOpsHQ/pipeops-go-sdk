@@ -253,6 +253,48 @@ type ExecSandboxResponse struct {
 	Data    ExecSandboxResult `json:"data"`
 }
 
+// SandboxFileInfo is one directory entry from ListFiles.
+type SandboxFileInfo struct {
+	Name  string `json:"name,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Size  int64  `json:"size,omitempty"`
+	Mode  string `json:"mode,omitempty"`
+	IsDir bool   `json:"is_dir"`
+}
+
+// SandboxFileList is GET /api/v1/sandboxes/:id/files data.
+type SandboxFileList struct {
+	SandboxID string            `json:"sandbox_id,omitempty"`
+	Path      string            `json:"path,omitempty"`
+	Files     []SandboxFileInfo `json:"files"`
+	Count     int               `json:"count"`
+}
+
+// SandboxFileListResponse is the BFF envelope for list files.
+type SandboxFileListResponse struct {
+	Success bool            `json:"success,omitempty"`
+	Message string          `json:"message,omitempty"`
+	Data    SandboxFileList `json:"data"`
+}
+
+// SandboxFileContent is GET /api/v1/sandboxes/:id/files/content data.
+// Encoding is "utf-8" for text or "base64" for binary.
+type SandboxFileContent struct {
+	SandboxID string `json:"sandbox_id,omitempty"`
+	Path      string `json:"path,omitempty"`
+	Content   string `json:"content,omitempty"`
+	Encoding  string `json:"encoding,omitempty"`
+	Size      int    `json:"size"`
+	Truncated bool   `json:"truncated,omitempty"`
+}
+
+// SandboxFileContentResponse is the BFF envelope for read file.
+type SandboxFileContentResponse struct {
+	Success bool               `json:"success,omitempty"`
+	Message string             `json:"message,omitempty"`
+	Data    SandboxFileContent `json:"data"`
+}
+
 // List lists sandboxes for a workspace.
 // GET /api/v1/sandboxes?workspace_uuid=
 func (s *SandboxService) List(ctx context.Context, opts *SandboxWorkspaceOptions) (*SandboxListResponse, *http.Response, error) {
@@ -380,6 +422,66 @@ func (s *SandboxService) Exec(ctx context.Context, sandboxID string, opts *Sandb
 		return nil, nil, err
 	}
 	out := new(ExecSandboxResponse)
+	resp, err := s.client.Do(ctx, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
+// ListFiles lists a directory inside a running sandbox.
+// GET /api/v1/sandboxes/:id/files?workspace_uuid=&path=
+// Empty path defaults to /home/user on the server.
+func (s *SandboxService) ListFiles(ctx context.Context, sandboxID, path string, opts *SandboxWorkspaceOptions) (*SandboxFileListResponse, *http.Response, error) {
+	if strings.TrimSpace(sandboxID) == "" {
+		return nil, nil, errors.New("sandbox id is required")
+	}
+	u, err := withSandboxWorkspaceQuery(fmt.Sprintf("%s/%s/files", sandboxesBase, url.PathEscape(sandboxID)), opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	if p := strings.TrimSpace(path); p != "" {
+		if strings.Contains(u, "?") {
+			u += "&path=" + url.QueryEscape(p)
+		} else {
+			u += "?path=" + url.QueryEscape(p)
+		}
+	}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(SandboxFileListResponse)
+	resp, err := s.client.Do(ctx, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
+// ReadFile reads a file from a running sandbox (UTF-8 text or base64).
+// GET /api/v1/sandboxes/:id/files/content?workspace_uuid=&path=
+func (s *SandboxService) ReadFile(ctx context.Context, sandboxID, path string, opts *SandboxWorkspaceOptions) (*SandboxFileContentResponse, *http.Response, error) {
+	if strings.TrimSpace(sandboxID) == "" {
+		return nil, nil, errors.New("sandbox id is required")
+	}
+	if strings.TrimSpace(path) == "" {
+		return nil, nil, errors.New("path is required")
+	}
+	u, err := withSandboxWorkspaceQuery(fmt.Sprintf("%s/%s/files/content", sandboxesBase, url.PathEscape(sandboxID)), opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	if strings.Contains(u, "?") {
+		u += "&path=" + url.QueryEscape(path)
+	} else {
+		u += "?path=" + url.QueryEscape(path)
+	}
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(SandboxFileContentResponse)
 	resp, err := s.client.Do(ctx, req, out)
 	if err != nil {
 		return nil, resp, err

@@ -197,6 +197,61 @@ func TestSandboxService_Create_Get_Lifecycle(t *testing.T) {
 	}
 }
 
+func TestSandboxService_ListAndReadFiles(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/sandboxes/c9/files/content", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s", r.Method)
+		}
+		if r.URL.Query().Get("path") != "/home/user/a.txt" {
+			t.Fatalf("path = %q", r.URL.Query().Get("path"))
+		}
+		if r.URL.Query().Get("workspace_uuid") != "ws-1" {
+			t.Fatalf("workspace = %q", r.URL.Query().Get("workspace_uuid"))
+		}
+		if _, err := w.Write([]byte(`{"success":true,"data":{"sandbox_id":"c9","path":"/home/user/a.txt","content":"hi\n","encoding":"utf-8","size":3}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	})
+	mux.HandleFunc("/api/v1/sandboxes/c9/files", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s", r.Method)
+		}
+		if r.URL.Query().Get("path") != "/home/user" {
+			t.Fatalf("path = %q", r.URL.Query().Get("path"))
+		}
+		if _, err := w.Write([]byte(`{"success":true,"data":{"sandbox_id":"c9","path":"/home/user","files":[{"name":"a.txt","path":"/home/user/a.txt","size":3,"is_dir":false}],"count":1}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	opts := &SandboxWorkspaceOptions{WorkspaceUUID: "ws-1"}
+	list, _, err := client.Sandboxes.ListFiles(context.Background(), "c9", "/home/user", opts)
+	if err != nil {
+		t.Fatalf("ListFiles: %v", err)
+	}
+	if list.Data.Count != 1 || list.Data.Files[0].Name != "a.txt" {
+		t.Fatalf("list = %+v", list.Data)
+	}
+	file, _, err := client.Sandboxes.ReadFile(context.Background(), "c9", "/home/user/a.txt", opts)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if file.Data.Content != "hi\n" || file.Data.Encoding != "utf-8" {
+		t.Fatalf("file = %+v", file.Data)
+	}
+	if _, _, err := client.Sandboxes.ReadFile(context.Background(), "c9", "", opts); err == nil {
+		t.Fatal("expected path required")
+	}
+}
+
 func TestSandboxService_Restart(t *testing.T) {
 	t.Parallel()
 	var calls []string
