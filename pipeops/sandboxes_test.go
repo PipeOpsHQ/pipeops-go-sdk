@@ -123,6 +123,24 @@ func TestSandboxService_Create_Get_Lifecycle(t *testing.T) {
 			t.Fatalf("write: %v", err)
 		}
 	})
+	mux.HandleFunc("/api/v1/sandboxes/c9/exec", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s", r.Method)
+		}
+		var body ExecSandboxRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if body.Command != "echo hi" {
+			t.Fatalf("command = %q", body.Command)
+		}
+		if r.URL.Query().Get("workspace_uuid") != "ws-1" {
+			t.Fatalf("workspace = %q", r.URL.Query().Get("workspace_uuid"))
+		}
+		if _, err := w.Write([]byte(`{"success":true,"message":"command executed","data":{"sandbox_id":"c9","stdout":"hi\n","output":"hi\n","exit_code":0,"command":"echo hi"}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	})
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
@@ -165,6 +183,17 @@ func TestSandboxService_Create_Get_Lifecycle(t *testing.T) {
 	}
 	if sess.Data.Token != "ephemeral_tok" || sess.Data.ExpiresIn != 900 {
 		t.Fatalf("session = %+v", sess.Data)
+	}
+
+	execOut, _, err := client.Sandboxes.Exec(context.Background(), "c9", opts, &ExecSandboxRequest{Command: "echo hi"})
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if execOut.Data.ExitCode != 0 || execOut.Data.Output != "hi\n" {
+		t.Fatalf("exec = %+v", execOut.Data)
+	}
+	if _, _, err := client.Sandboxes.Exec(context.Background(), "c9", opts, &ExecSandboxRequest{}); err == nil {
+		t.Fatal("expected missing command error")
 	}
 }
 

@@ -223,6 +223,36 @@ type MessageOnlyResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+// ExecSandboxRequest is POST /api/v1/sandboxes/:id/exec.
+// Prefer Command for shell strings; Cmd is argv when you need no shell.
+type ExecSandboxRequest struct {
+	Command        string   `json:"command,omitempty"`
+	Cmd            []string `json:"cmd,omitempty"`
+	WorkDir        string   `json:"workdir,omitempty"`
+	Env            []string `json:"env,omitempty"`
+	User           string   `json:"user,omitempty"`
+	TimeoutSeconds int      `json:"timeout_seconds,omitempty"` // default 60, max 300
+}
+
+// ExecSandboxResult is the captured output from a non-interactive sandbox exec.
+type ExecSandboxResult struct {
+	SandboxID string   `json:"sandbox_id,omitempty"`
+	Stdout    string   `json:"stdout,omitempty"`
+	Stderr    string   `json:"stderr,omitempty"`
+	Output    string   `json:"output,omitempty"`
+	ExitCode  int      `json:"exit_code"`
+	Command   string   `json:"command,omitempty"`
+	Cmd       []string `json:"cmd,omitempty"`
+	Truncated bool     `json:"truncated,omitempty"`
+}
+
+// ExecSandboxResponse is the BFF envelope for POST .../exec.
+type ExecSandboxResponse struct {
+	Success bool              `json:"success,omitempty"`
+	Message string            `json:"message,omitempty"`
+	Data    ExecSandboxResult `json:"data"`
+}
+
 // List lists sandboxes for a workspace.
 // GET /api/v1/sandboxes?workspace_uuid=
 func (s *SandboxService) List(ctx context.Context, opts *SandboxWorkspaceOptions) (*SandboxListResponse, *http.Response, error) {
@@ -321,6 +351,35 @@ func (s *SandboxService) Delete(ctx context.Context, sandboxID string, opts *San
 		return nil, nil, err
 	}
 	out := new(MessageOnlyResponse)
+	resp, err := s.client.Do(ctx, req, out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return out, resp, nil
+}
+
+// Exec runs a non-interactive command inside a running sandbox.
+// POST /api/v1/sandboxes/:id/exec?workspace_uuid=
+// Body requires Command (shell string) and/or Cmd (argv).
+func (s *SandboxService) Exec(ctx context.Context, sandboxID string, opts *SandboxWorkspaceOptions, body *ExecSandboxRequest) (*ExecSandboxResponse, *http.Response, error) {
+	if strings.TrimSpace(sandboxID) == "" {
+		return nil, nil, errors.New("sandbox id is required")
+	}
+	if body == nil {
+		return nil, nil, errors.New("exec body is required")
+	}
+	if strings.TrimSpace(body.Command) == "" && len(body.Cmd) == 0 {
+		return nil, nil, errors.New("command or cmd is required")
+	}
+	u, err := withSandboxWorkspaceQuery(fmt.Sprintf("%s/%s/exec", sandboxesBase, url.PathEscape(sandboxID)), opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	req, err := s.client.NewRequest(http.MethodPost, u, body)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(ExecSandboxResponse)
 	resp, err := s.client.Do(ctx, req, out)
 	if err != nil {
 		return nil, resp, err

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `SandboxService.Exec` — run non-interactive commands in a sandbox via `POST /api/v1/sandboxes/:id/exec` (`command` / `cmd`, stdout/stderr/exit_code)
 - `SandboxService` (`Client.Sandboxes`) for Rexec sandboxes BFF: list/get/create/start/stop/delete/restart, session grants, mint `rexec_*` API token, workspace Rexec binding, and daily usage (`/api/v1/sandboxes`)
 - Docs: `docs/sandboxes.md` and `examples/sandboxes`
 - `ApplyCreateProjectDefaults` — prefer-client create defaults (PORT from network only if missing, source/environment/protocol/worker gaps only)
