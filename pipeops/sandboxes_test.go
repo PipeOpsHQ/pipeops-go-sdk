@@ -48,7 +48,9 @@ func TestSandboxService_List_SendsWorkspaceQuery(t *testing.T) {
 			t.Fatalf("workspace = %q", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"message":"sandboxes retrieved","data":[{"id":"c1","name":"dev","status":"running"}],"meta":{"count":1}}`))
+		if _, err := w.Write([]byte(`{"success":true,"message":"sandboxes retrieved","data":[{"id":"c1","name":"dev","status":"running"}],"meta":{"count":1}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -82,7 +84,9 @@ func TestSandboxService_Create_Get_Lifecycle(t *testing.T) {
 				t.Fatalf("workspace = %q", r.URL.Query().Get("workspace_uuid"))
 			}
 			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"success":true,"message":"sandbox created","data":{"id":"c9","name":"my-box","image":"ubuntu","status":"creating"}}`))
+			if _, err := w.Write([]byte(`{"success":true,"message":"sandbox created","data":{"id":"c9","name":"my-box","image":"ubuntu","status":"creating"}}`)); err != nil {
+				t.Fatalf("write: %v", err)
+			}
 		default:
 			t.Fatalf("unexpected %s", r.Method)
 		}
@@ -91,25 +95,33 @@ func TestSandboxService_Create_Get_Lifecycle(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("method = %s", r.Method)
 		}
-		_, _ = w.Write([]byte(`{"success":true,"data":{"id":"c9","Name":"my-box","Status":"running"}}`))
+		if _, err := w.Write([]byte(`{"success":true,"data":{"id":"c9","Name":"my-box","Status":"running"}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	})
 	mux.HandleFunc("/api/v1/sandboxes/c9/start", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s", r.Method)
 		}
-		_, _ = w.Write([]byte(`{"success":true,"message":"sandbox started"}`))
+		if _, err := w.Write([]byte(`{"success":true,"message":"sandbox started"}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	})
 	mux.HandleFunc("/api/v1/sandboxes/c9/stop", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s", r.Method)
 		}
-		_, _ = w.Write([]byte(`{"success":true,"message":"sandbox stopped"}`))
+		if _, err := w.Write([]byte(`{"success":true,"message":"sandbox stopped"}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	})
 	mux.HandleFunc("/api/v1/sandboxes/c9/session", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s", r.Method)
 		}
-		_, _ = w.Write([]byte(`{"success":true,"data":{"container_id":"c9","token":"ephemeral_tok","base_url":"https://rexec.sh","expires_in_seconds":900,"token_source":"ephemeral"}}`))
+		if _, err := w.Write([]byte(`{"success":true,"data":{"container_id":"c9","token":"ephemeral_tok","base_url":"https://rexec.sh","expires_in_seconds":900,"token_source":"ephemeral"}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	})
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -161,7 +173,9 @@ func TestSandboxService_Restart(t *testing.T) {
 	var calls []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.Path)
-		_, _ = w.Write([]byte(`{"success":true,"message":"ok"}`))
+		if _, err := w.Write([]byte(`{"success":true,"message":"ok"}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -185,21 +199,31 @@ func TestSandboxService_MintAPIToken_AndBinding(t *testing.T) {
 			t.Fatalf("method = %s", r.Method)
 		}
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"success":true,"data":{"token":"rexec_once","base_url":"https://rexec.sh","token_prefix":"rexec_onc"}}`))
+		if _, err := w.Write([]byte(`{"success":true,"data":{"token":"rexec_once","base_url":"https://rexec.sh","token_prefix":"rexec_onc"}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	})
 	mux.HandleFunc("/api/v1/sandboxes/rexec-binding", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			_, _ = w.Write([]byte(`{"success":true,"data":{"workspace_uuid":"ws-1","configured":true,"enabled":true,"token_prefix":"rexec_abc","source":"workspace"}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"workspace_uuid":"ws-1","configured":true,"enabled":true,"token_prefix":"rexec_abc","source":"workspace"}}`)); err != nil {
+				t.Fatalf("write: %v", err)
+			}
 		case http.MethodPut:
 			var body UpsertRexecBindingRequest
-			_ = json.NewDecoder(r.Body).Decode(&body)
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
 			if body.Token != "rexec_new" {
 				t.Fatalf("token = %q", body.Token)
 			}
-			_, _ = w.Write([]byte(`{"success":true,"data":{"configured":true,"enabled":true,"token_prefix":"rexec_new"}}`))
+			if _, err := w.Write([]byte(`{"success":true,"data":{"configured":true,"enabled":true,"token_prefix":"rexec_new"}}`)); err != nil {
+				t.Fatalf("write: %v", err)
+			}
 		case http.MethodDelete:
-			_, _ = w.Write([]byte(`{"success":true,"message":"rexec binding removed"}`))
+			if _, err := w.Write([]byte(`{"success":true,"message":"rexec binding removed"}`)); err != nil {
+				t.Fatalf("write: %v", err)
+			}
 		default:
 			t.Fatalf("method = %s", r.Method)
 		}
@@ -245,7 +269,9 @@ func TestSandboxService_UsageDaily(t *testing.T) {
 		if r.URL.Query().Get("from") != "2026-08-01" || r.URL.Query().Get("to") != "2026-08-03" {
 			t.Fatalf("query = %s", r.URL.RawQuery)
 		}
-		_, _ = w.Write([]byte(`{"success":true,"data":[{"workspace_uuid":"ws-1","created_count":2,"session_count":5}]}`))
+		if _, err := w.Write([]byte(`{"success":true,"data":[{"workspace_uuid":"ws-1","created_count":2,"session_count":5}]}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
