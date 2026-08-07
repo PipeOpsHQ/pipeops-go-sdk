@@ -505,14 +505,14 @@ func (s *AddOnService) GetMySubmissions(ctx context.Context) (*MySubmissionsResp
 		return nil, resp, err
 	}
 	out := &MySubmissionsResponse{}
-	if v, ok := raw["status"]; ok {
-		_ = json.Unmarshal(v, &out.Status)
+	if err := decodeOptionalJSONField(raw, "status", &out.Status); err != nil {
+		return nil, resp, err
 	}
-	if v, ok := raw["success"]; ok {
-		_ = json.Unmarshal(v, &out.Success)
+	if err := decodeOptionalJSONField(raw, "success", &out.Success); err != nil {
+		return nil, resp, err
 	}
-	if v, ok := raw["message"]; ok {
-		_ = json.Unmarshal(v, &out.Message)
+	if err := decodeOptionalJSONField(raw, "message", &out.Message); err != nil {
+		return nil, resp, err
 	}
 	if v, ok := raw["data"]; ok && len(v) > 0 && string(v) != "null" {
 		// Prefer bare array.
@@ -528,6 +528,15 @@ func (s *AddOnService) GetMySubmissions(ctx context.Context) (*MySubmissionsResp
 		}
 	}
 	return out, resp, nil
+}
+
+// decodeOptionalJSONField unmarshals raw[key] into dest when present.
+func decodeOptionalJSONField(raw map[string]json.RawMessage, key string, dest interface{}) error {
+	v, ok := raw[key]
+	if !ok || len(v) == 0 || string(v) == "null" {
+		return nil
+	}
+	return json.Unmarshal(v, dest)
 }
 
 // UpdateDeploymentRequest represents a request to update an add-on deployment.
@@ -907,14 +916,14 @@ func (s *AddOnService) GetSubmittedAddOns(ctx context.Context) (*MySubmissionsRe
 		return nil, resp, err
 	}
 	out := &MySubmissionsResponse{}
-	if v, ok := raw["status"]; ok {
-		_ = json.Unmarshal(v, &out.Status)
+	if err := decodeOptionalJSONField(raw, "status", &out.Status); err != nil {
+		return nil, resp, err
 	}
-	if v, ok := raw["success"]; ok {
-		_ = json.Unmarshal(v, &out.Success)
+	if err := decodeOptionalJSONField(raw, "success", &out.Success); err != nil {
+		return nil, resp, err
 	}
-	if v, ok := raw["message"]; ok {
-		_ = json.Unmarshal(v, &out.Message)
+	if err := decodeOptionalJSONField(raw, "message", &out.Message); err != nil {
+		return nil, resp, err
 	}
 	if v, ok := raw["data"]; ok && len(v) > 0 && string(v) != "null" {
 		if err := json.Unmarshal(v, &out.Data); err != nil {

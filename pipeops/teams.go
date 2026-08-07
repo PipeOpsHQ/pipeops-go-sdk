@@ -286,12 +286,12 @@ func (s *TeamService) ListMembers(ctx context.Context, teamUUID string) (*TeamMe
 
 // extractTeamMembersFromFetch pulls members from GET /team/fetch/:uuid payloads.
 func extractTeamMembersFromFetch(raw map[string]interface{}) []TeamMember {
-	data, _ := raw["data"].(map[string]interface{})
-	if data == nil {
+	data, ok := raw["data"].(map[string]interface{})
+	if !ok || data == nil {
 		return nil
 	}
-	teamObj, _ := data["team"].(map[string]interface{})
-	if teamObj == nil {
+	teamObj, ok := data["team"].(map[string]interface{})
+	if !ok || teamObj == nil {
 		return nil
 	}
 	// Prefer TeamMembers / team_members arrays on the team object.
