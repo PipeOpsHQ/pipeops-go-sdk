@@ -473,12 +473,20 @@ func (s *AddOnService) SubmitAddOn(ctx context.Context, req *AddOnSubmissionRequ
 }
 
 // MySubmissionsResponse represents user's add-on submissions response.
+// Controller returns data as a bare array of addons (not {submissions:[]}).
 type MySubmissionsResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Submissions []AddOn `json:"submissions"`
-	} `json:"data"`
+	Status  string  `json:"status"`
+	Success bool    `json:"success"`
+	Message string  `json:"message"`
+	Data    []AddOn `json:"data"`
+}
+
+// Submissions is an alias for Data for callers that used the old nested field.
+func (r *MySubmissionsResponse) Submissions() []AddOn {
+	if r == nil {
+		return nil
+	}
+	return r.Data
 }
 
 // GetMySubmissions retrieves user's add-on submissions.
@@ -490,13 +498,45 @@ func (s *AddOnService) GetMySubmissions(ctx context.Context) (*MySubmissionsResp
 		return nil, nil, err
 	}
 
-	submissionsResp := new(MySubmissionsResponse)
-	resp, err := s.client.Do(ctx, req, submissionsResp)
+	// Decode flexibly: data may be []AddOn or {submissions:[]}.
+	var raw map[string]json.RawMessage
+	resp, err := s.client.Do(ctx, req, &raw)
 	if err != nil {
 		return nil, resp, err
 	}
+	out := &MySubmissionsResponse{}
+	if err := decodeOptionalJSONField(raw, "status", &out.Status); err != nil {
+		return nil, resp, err
+	}
+	if err := decodeOptionalJSONField(raw, "success", &out.Success); err != nil {
+		return nil, resp, err
+	}
+	if err := decodeOptionalJSONField(raw, "message", &out.Message); err != nil {
+		return nil, resp, err
+	}
+	if v, ok := raw["data"]; ok && len(v) > 0 && string(v) != "null" {
+		// Prefer bare array.
+		if err := json.Unmarshal(v, &out.Data); err != nil {
+			var nested struct {
+				Submissions []AddOn `json:"submissions"`
+			}
+			if err2 := json.Unmarshal(v, &nested); err2 == nil {
+				out.Data = nested.Submissions
+			} else {
+				return nil, resp, err
+			}
+		}
+	}
+	return out, resp, nil
+}
 
-	return submissionsResp, resp, nil
+// decodeOptionalJSONField unmarshals raw[key] into dest when present.
+func decodeOptionalJSONField(raw map[string]json.RawMessage, key string, dest interface{}) error {
+	v, ok := raw[key]
+	if !ok || len(v) == 0 || string(v) == "null" {
+		return nil
+	}
+	return json.Unmarshal(v, dest)
 }
 
 // UpdateDeploymentRequest represents a request to update an add-on deployment.
@@ -577,9 +617,27 @@ type DeploymentSessionResponse struct {
 	} `json:"data"`
 }
 
+// GetDeploymentSessionOptions scopes session fetch to a workspace (middleware requires query).
+type GetDeploymentSessionOptions struct {
+	WorkspaceUUID string `url:"workspace,omitempty"`
+}
+
 // GetDeploymentSession retrieves deployment session information.
-func (s *AddOnService) GetDeploymentSession(ctx context.Context, sessionID string) (*DeploymentSessionResponse, *http.Response, error) {
+// Controller middleware expects ?workspace= for addon routes.
+func (s *AddOnService) GetDeploymentSession(ctx context.Context, sessionID string, opts ...*GetDeploymentSessionOptions) (*DeploymentSessionResponse, *http.Response, error) {
 	u := fmt.Sprintf("addons/deployments/sessions/%s", sessionID)
+	workspaceUUID := ""
+	if len(opts) > 0 && opts[0] != nil {
+		workspaceUUID = strings.TrimSpace(opts[0].WorkspaceUUID)
+	}
+	if workspaceUUID == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspaceUUID = ws
+		}
+	}
+	if workspaceUUID != "" {
+		u = u + "?workspace=" + url.QueryEscape(workspaceUUID)
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -640,9 +698,36 @@ func (s *AddOnService) ViewDeploymentConfigs(ctx context.Context, addonUUID stri
 	return configsResp, resp, nil
 }
 
-// AddDomain adds a domain to an add-on.
+// AddonDomainRequest is POST /addons/:id/domain (CreateOrAlterDomainName).
+// Action must be "create", "update", or "delete". Value is the domain hostname.
+type AddonDomainRequest struct {
+	Action      string `json:"action"`                // create | update | delete
+	Value       string `json:"value"`                 // domain name
+	PrevValue   string `json:"prevValue,omitempty"`   // required for update
+	NetworkUUID string `json:"networkUUID,omitempty"` // optional network target
+	NetworkPort int32  `json:"networkPort,omitempty"` // optional port for network resolution
+}
+
+// AddDomain adds a domain to an add-on deployment.
+// Controller: POST /addons/:id/domain with {action,value,...} — not {domain}.
+// DomainRequest.Domain is accepted for backward compatibility and mapped to action=create,value=.
 func (s *AddOnService) AddDomain(ctx context.Context, addonUUID string, req *DomainRequest) (*http.Response, error) {
-	// Controller: POST /addons/:id/domain (not /addons/domains/:id).
+	body := &AddonDomainRequest{Action: "create", Value: strings.TrimSpace(req.Domain)}
+	return s.AlterDomain(ctx, addonUUID, body)
+}
+
+// AlterDomain create/update/delete an add-on custom domain.
+func (s *AddOnService) AlterDomain(ctx context.Context, addonUUID string, req *AddonDomainRequest) (*http.Response, error) {
+	if req == nil {
+		return nil, errors.New("domain request is required")
+	}
+	if strings.TrimSpace(req.Action) == "" {
+		req.Action = "create"
+	}
+	if strings.TrimSpace(req.Value) == "" {
+		return nil, errors.New("domain value is required")
+	}
+	// Controller: POST /addons/:id/domain
 	u := fmt.Sprintf("addons/%s/domain", strings.TrimSpace(addonUUID))
 	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil && workspaceUUID != "" {
 		// AddonPermissionMiddleware requires query "workspace".
@@ -816,6 +901,7 @@ func (s *AddOnService) BulkDeleteDeployments(ctx context.Context, req *BulkDelet
 // Admin Add-On Endpoints
 
 // GetSubmittedAddOns retrieves submitted add-ons (admin only).
+// Same envelope as GetMySubmissions: data is a bare addon array.
 func (s *AddOnService) GetSubmittedAddOns(ctx context.Context) (*MySubmissionsResponse, *http.Response, error) {
 	u := "admin/addons/submissions"
 
@@ -824,13 +910,34 @@ func (s *AddOnService) GetSubmittedAddOns(ctx context.Context) (*MySubmissionsRe
 		return nil, nil, err
 	}
 
-	submissionsResp := new(MySubmissionsResponse)
-	resp, err := s.client.Do(ctx, req, submissionsResp)
+	var raw map[string]json.RawMessage
+	resp, err := s.client.Do(ctx, req, &raw)
 	if err != nil {
 		return nil, resp, err
 	}
-
-	return submissionsResp, resp, nil
+	out := &MySubmissionsResponse{}
+	if err := decodeOptionalJSONField(raw, "status", &out.Status); err != nil {
+		return nil, resp, err
+	}
+	if err := decodeOptionalJSONField(raw, "success", &out.Success); err != nil {
+		return nil, resp, err
+	}
+	if err := decodeOptionalJSONField(raw, "message", &out.Message); err != nil {
+		return nil, resp, err
+	}
+	if v, ok := raw["data"]; ok && len(v) > 0 && string(v) != "null" {
+		if err := json.Unmarshal(v, &out.Data); err != nil {
+			var nested struct {
+				Submissions []AddOn `json:"submissions"`
+			}
+			if err2 := json.Unmarshal(v, &nested); err2 == nil {
+				out.Data = nested.Submissions
+			} else {
+				return nil, resp, err
+			}
+		}
+	}
+	return out, resp, nil
 }
 
 // ReviewAddOnRequest represents an add-on review request.

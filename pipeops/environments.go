@@ -162,21 +162,11 @@ type UpdateEnvironmentRequest struct {
 }
 
 // Update updates an environment.
+// Note: controller route PUT /environment/:uuid/update is currently disabled
+// ("a user can only add env to an environment; it cannot be edited"). Callers
+// should treat this as unsupported until the control plane re-enables it.
 func (s *EnvironmentService) Update(ctx context.Context, envUUID string, req *UpdateEnvironmentRequest) (*EnvironmentResponse, *http.Response, error) {
-	u := fmt.Sprintf("environment/%s/update", envUUID)
-
-	httpReq, err := s.client.NewRequest(http.MethodPut, u, req)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	envResp := new(EnvironmentResponse)
-	resp, err := s.client.Do(ctx, httpReq, envResp)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return envResp, resp, nil
+	return nil, nil, fmt.Errorf("environment update is not supported by the control plane (PUT /environment/:uuid/update is disabled; rename is not available via API)")
 }
 
 // Delete deletes an environment.

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 // ServiceTokenService handles communication with service account token related
@@ -29,10 +31,12 @@ type ServiceAccountToken struct {
 
 // ServiceAccountTokenRequest represents a request to create a service account token.
 type ServiceAccountTokenRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Permissions []string `json:"permissions,omitempty"`
-	ExpiresAt   string   `json:"expires_at,omitempty"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description,omitempty"`
+	Permissions   []string `json:"permissions,omitempty"`
+	ExpiresAt     string   `json:"expires_at,omitempty"`
+	WorkspaceUUID string   `json:"workspace_uuid,omitempty"` // required by controller
+	Preset        string   `json:"preset,omitempty"`         // e.g. sandbox, mcp, sdk
 }
 
 // ServiceAccountTokenUpdateRequest represents a request to update a service account token.
@@ -63,8 +67,20 @@ type ServiceAccountTokenListResponse struct {
 }
 
 // CreateServiceAccountToken creates a new service account token.
+// Controller requires workspace_uuid on the body (and often on the query).
 func (s *ServiceTokenService) CreateServiceAccountToken(ctx context.Context, req *ServiceAccountTokenRequest) (*ServiceAccountTokenResponse, *http.Response, error) {
 	u := "api/v1/service-account-tokens"
+	if req != nil && strings.TrimSpace(req.WorkspaceUUID) != "" {
+		u = u + "?workspace_uuid=" + url.QueryEscape(strings.TrimSpace(req.WorkspaceUUID))
+	} else if ws, _, err := firstWorkspaceUUID(ctx, s.client); err == nil && ws != "" {
+		if req == nil {
+			req = &ServiceAccountTokenRequest{}
+		}
+		if req.WorkspaceUUID == "" {
+			req.WorkspaceUUID = ws
+		}
+		u = u + "?workspace_uuid=" + url.QueryEscape(ws)
+	}
 
 	httpReq, err := s.client.NewRequest(http.MethodPost, u, req)
 	if err != nil {

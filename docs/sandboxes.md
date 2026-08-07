@@ -47,6 +47,9 @@ mint, _, err := client.Sandboxes.MintAPIToken(ctx, ws, &pipeops.MintRexecAPIToke
 | `Start` / `Stop` / `Delete` | `POST .../start`, `POST .../stop`, `DELETE .../:id` |
 | `Restart` | stop then start (client helper) |
 | `CreateSession` | `POST .../:id/session` |
+| `Exec` | `POST .../:id/exec` |
+| `ListFiles` | `GET .../:id/files` |
+| `ReadFile` | `GET .../:id/files/content` |
 
 ## BYOS binding & usage
 
@@ -60,4 +63,24 @@ mint, _, err := client.Sandboxes.MintAPIToken(ctx, ws, &pipeops.MintRexecAPIToke
 
 ## Not in this client
 
-File list/upload/download and raw WebSocket terminal are not on the BFF path used here. Prefer `CreateSession` + Rexec UI/terminal, or a direct Rexec client with a minted `rexec_*` token.
+### Run a command inside a sandbox
+
+```go
+exec, _, err := client.Sandboxes.Exec(ctx, created.Data.ID, ws, &pipeops.ExecSandboxRequest{
+	Command:        "uname -a && pwd",
+	TimeoutSeconds: 60,
+})
+// exec.Data.Output, exec.Data.ExitCode, exec.Data.Stdout, exec.Data.Stderr
+```
+
+### List / read files
+
+```go
+list, _, err := client.Sandboxes.ListFiles(ctx, created.Data.ID, "/home/user", ws)
+// list.Data.Files[i].Name, .Path, .IsDir, .Size
+
+file, _, err := client.Sandboxes.ReadFile(ctx, created.Data.ID, "/home/user/app.go", ws)
+// file.Data.Content, file.Data.Encoding ("utf-8" | "base64"), file.Data.Size
+```
+
+Upload and raw WebSocket terminal are not on the BFF path used here. Prefer `Exec` for one-shot agent commands, `ListFiles`/`ReadFile` for inspection, `CreateSession` + Rexec UI/terminal for interactive shells, or a direct Rexec client with a minted `rexec_*` token.
