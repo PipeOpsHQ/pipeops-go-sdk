@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 // GitOpsService handles GitOps application configuration APIs.
@@ -28,6 +30,8 @@ type CreateGitOpsConfigRequest struct {
 	Name          string `json:"name"`
 	ProjectID     *uint  `json:"project_id,omitempty"`
 	EnvironmentID *uint  `json:"environment_id,omitempty"`
+	// WorkspaceUUID scopes the config (body and/or workspace_uuid query; required by controller).
+	WorkspaceUUID string `json:"workspace_uuid,omitempty"`
 
 	RepoURL        string `json:"repo_url"`
 	Branch         string `json:"branch,omitempty"`
@@ -240,9 +244,20 @@ type GitOpsSyncHistoryResponse struct {
 }
 
 // Create creates a new GitOps application configuration.
-// POST /api/v1/gitops/applications
+// POST /api/v1/gitops/applications?workspace_uuid=
 func (s *GitOpsService) Create(ctx context.Context, body *CreateGitOpsConfigRequest) (*GitOpsConfigResponse, *http.Response, error) {
 	u := "api/v1/gitops/applications"
+	if body != nil && strings.TrimSpace(body.WorkspaceUUID) != "" {
+		u = u + "?workspace_uuid=" + url.QueryEscape(strings.TrimSpace(body.WorkspaceUUID))
+	} else if ws, _, err := firstWorkspaceUUID(ctx, s.client); err == nil && ws != "" {
+		if body == nil {
+			body = &CreateGitOpsConfigRequest{}
+		}
+		if body.WorkspaceUUID == "" {
+			body.WorkspaceUUID = ws
+		}
+		u = u + "?workspace_uuid=" + url.QueryEscape(ws)
+	}
 
 	req, err := s.client.NewRequest(http.MethodPost, u, body)
 	if err != nil {
