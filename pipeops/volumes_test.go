@@ -179,6 +179,10 @@ func TestAddOnBackupPaths(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("method = %s", r.Method)
 		}
+		// Must not auto-attach ?workspace= from firstWorkspaceUUID.
+		if got := r.URL.Query().Get("workspace"); got != "" {
+			t.Fatalf("workspace query = %q, want empty (derive on server)", got)
+		}
 		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"data": map[string]interface{}{

@@ -867,17 +867,19 @@ func (s *AddOnService) DownloadAddonBackupExport(ctx context.Context, deployment
 	return s.client.Do(ctx, req, nil)
 }
 
-func withAddonWorkspaceQuery(ctx context.Context, client *Client, path string) string {
-	if workspaceUUID, _, wsErr := firstWorkspaceUUID(ctx, client); wsErr == nil {
-		if withWorkspace, err := addOptions(path, &addonWorkspaceOptions{Workspace: workspaceUUID}); err == nil {
-			return withWorkspace
-		}
-	}
+// withAddonWorkspaceQuery used to append ?workspace=<first workspace UUID>.
+// That is unsafe: CheckAddonPermission derives workspace from the deployment
+// when the query is omitted, and auto-picking the wrong workspace produced
+// Cloudflare/console HTML 403s (not JSON) on api.pipeops.io for backups.
+//
+// Prefer omitting the query entirely. Callers that must scope can append
+// ?workspace=<uuid> themselves via a future options struct; do not invent one.
+func withAddonWorkspaceQuery(_ context.Context, _ *Client, path string) string {
 	return path
 }
 
 type addonWorkspaceOptions struct {
-	Workspace string `url:"workspace"`
+	Workspace string `url:"workspace,omitempty"`
 }
 
 // BulkDeleteDeploymentsRequest represents a request to bulk delete deployments.
