@@ -82,10 +82,15 @@ func TestGitOpsServicePaths(t *testing.T) {
 		}
 	})
 
+	wsOpts := &GitOpsWorkspaceOptions{WorkspaceUUID: "ws-1"}
+
 	t.Run("Get", func(t *testing.T) {
 		mux.HandleFunc("/api/v1/gitops/applications/go-2", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s", r.Method)
+			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "ws-1" {
+				t.Fatalf("workspace_uuid = %q", got)
 			}
 			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
@@ -94,7 +99,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
-		resp, _, err := client.GitOps.Get(context.Background(), "go-2")
+		resp, _, err := client.GitOps.Get(context.Background(), "go-2", wsOpts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -108,6 +113,9 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodPut {
 				t.Fatalf("method = %s", r.Method)
 			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "ws-1" {
+				t.Fatalf("workspace_uuid = %q", got)
+			}
 			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data":    map[string]string{"uuid": "go-3", "branch": "develop"},
@@ -117,7 +125,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 		})
 		resp, _, err := client.GitOps.Update(context.Background(), "go-3", &UpdateGitOpsConfigRequest{
 			Branch: "develop",
-		})
+		}, wsOpts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -131,6 +139,9 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodDelete {
 				t.Fatalf("method = %s", r.Method)
 			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "ws-1" {
+				t.Fatalf("workspace_uuid = %q", got)
+			}
 			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"message": "deleted",
@@ -138,7 +149,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
-		if _, err := client.GitOps.Delete(context.Background(), "go-4"); err != nil {
+		if _, err := client.GitOps.Delete(context.Background(), "go-4", wsOpts); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -147,6 +158,9 @@ func TestGitOpsServicePaths(t *testing.T) {
 		mux.HandleFunc("/api/v1/gitops/applications/go-5/sync", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("method = %s", r.Method)
+			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "ws-1" {
+				t.Fatalf("workspace_uuid = %q", got)
 			}
 			w.WriteHeader(http.StatusAccepted)
 			if err := json.NewEncoder(w).Encode(map[string]interface{}{
@@ -158,7 +172,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 		})
 		resp, _, err := client.GitOps.TriggerSync(context.Background(), "go-5", &TriggerGitOpsSyncRequest{
 			Revision: "abc",
-		})
+		}, wsOpts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -172,6 +186,9 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s", r.Method)
 			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "ws-1" {
+				t.Fatalf("workspace_uuid = %q", got)
+			}
 			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]string{
@@ -182,7 +199,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
-		resp, _, err := client.GitOps.GetSyncStatus(context.Background(), "go-6")
+		resp, _, err := client.GitOps.GetSyncStatus(context.Background(), "go-6", wsOpts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,6 +213,9 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Fatalf("method = %s", r.Method)
 			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "ws-1" {
+				t.Fatalf("workspace_uuid = %q", got)
+			}
 			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
@@ -207,7 +227,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
-		resp, _, err := client.GitOps.GetDiff(context.Background(), "go-7")
+		resp, _, err := client.GitOps.GetDiff(context.Background(), "go-7", wsOpts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -224,6 +244,9 @@ func TestGitOpsServicePaths(t *testing.T) {
 			if r.URL.Query().Get("page") != "2" {
 				t.Fatalf("page = %q", r.URL.Query().Get("page"))
 			}
+			if got := r.URL.Query().Get("workspace_uuid"); got != "ws-1" {
+				t.Fatalf("workspace_uuid = %q", got)
+			}
 			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
 				"data": map[string]interface{}{
@@ -236,7 +259,7 @@ func TestGitOpsServicePaths(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
-		resp, _, err := client.GitOps.GetHistory(context.Background(), "go-8", &GitOpsListOptions{Page: 2, Limit: 10})
+		resp, _, err := client.GitOps.GetHistory(context.Background(), "go-8", &GitOpsListOptions{Page: 2, Limit: 10, WorkspaceUUID: "ws-1"})
 		if err != nil {
 			t.Fatal(err)
 		}

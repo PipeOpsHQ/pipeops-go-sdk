@@ -608,13 +608,66 @@ func (s *AddOnService) GetDeploymentOverview(ctx context.Context) (*DeploymentOv
 	return overviewResp, resp, nil
 }
 
-// DeploymentSessionResponse represents deployment session response.
+// DeploymentSessionResponse represents GET /addons/deployments/sessions/:sessionID.
+// The control plane returns data as an array of AddonDeployment rows (session members),
+// not a nested {session: ...} object.
 type DeploymentSessionResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Session map[string]interface{} `json:"session"`
-	} `json:"data"`
+	Success bool   `json:"success,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+	// Deployments is the session's add-on deployments (API data array).
+	Deployments []map[string]interface{} `json:"-"`
+	// Session is populated when the API returns a single object (legacy/alternate shape).
+	Session map[string]interface{} `json:"-"`
+	// RawData preserves the original data field for callers that need it.
+	RawData json.RawMessage `json:"-"`
+}
+
+// UnmarshalJSON accepts data as either a deployment array or an object.
+func (r *DeploymentSessionResponse) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Success bool            `json:"success"`
+		Status  string          `json:"status"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	r.Success = raw.Success
+	r.Status = raw.Status
+	r.Message = raw.Message
+	r.RawData = raw.Data
+	if len(raw.Data) == 0 || string(raw.Data) == "null" {
+		return nil
+	}
+	// Preferred: array of deployments in the session.
+	var arr []map[string]interface{}
+	if err := json.Unmarshal(raw.Data, &arr); err == nil {
+		r.Deployments = arr
+		return nil
+	}
+	// Object: either {session: ...} or a single deployment map.
+	var obj map[string]interface{}
+	if err := json.Unmarshal(raw.Data, &obj); err != nil {
+		return err
+	}
+	if sess, ok := obj["session"].(map[string]interface{}); ok {
+		r.Session = sess
+		return nil
+	}
+	if deps, ok := obj["deployments"].([]interface{}); ok {
+		out := make([]map[string]interface{}, 0, len(deps))
+		for _, d := range deps {
+			if m, ok := d.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		r.Deployments = out
+		return nil
+	}
+	r.Session = obj
+	return nil
 }
 
 // GetDeploymentSessionOptions scopes session fetch to a workspace (middleware requires query).
@@ -622,18 +675,17 @@ type GetDeploymentSessionOptions struct {
 	WorkspaceUUID string `url:"workspace,omitempty"`
 }
 
-// GetDeploymentSession retrieves deployment session information.
-// Controller middleware expects ?workspace= for addon routes.
+// GetDeploymentSession retrieves deployments that share a deployment session ID.
+// GET /addons/deployments/sessions/:sessionID?workspace=
+// Controller middleware expects ?workspace= for addon routes. Prefer an explicit
+// workspace; when empty, the query is omitted so CheckAddonPermission can derive
+// it from the first matching deployment when possible. Auto-first-workspace is
+// not used (wrong workspace → HTML 403s on some edges).
 func (s *AddOnService) GetDeploymentSession(ctx context.Context, sessionID string, opts ...*GetDeploymentSessionOptions) (*DeploymentSessionResponse, *http.Response, error) {
 	u := fmt.Sprintf("addons/deployments/sessions/%s", sessionID)
 	workspaceUUID := ""
 	if len(opts) > 0 && opts[0] != nil {
 		workspaceUUID = strings.TrimSpace(opts[0].WorkspaceUUID)
-	}
-	if workspaceUUID == "" {
-		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
-			workspaceUUID = ws
-		}
 	}
 	if workspaceUUID != "" {
 		u = u + "?workspace=" + url.QueryEscape(workspaceUUID)
