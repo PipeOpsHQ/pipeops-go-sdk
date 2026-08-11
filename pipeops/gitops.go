@@ -173,6 +173,32 @@ type GitOpsListOptions struct {
 	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
 }
 
+// GitOpsWorkspaceOptions scopes by-UUID GitOps routes. The controller requires
+// workspace_uuid on Get/Update/Delete/Sync/Diff/History when WorkspaceContext
+// is not set by middleware.
+type GitOpsWorkspaceOptions struct {
+	WorkspaceUUID string `url:"workspace_uuid,omitempty"`
+}
+
+func appendGitOpsWorkspaceUUID(path, workspaceUUID string) string {
+	ws := strings.TrimSpace(workspaceUUID)
+	if ws == "" {
+		return path
+	}
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return path + sep + "workspace_uuid=" + url.QueryEscape(ws)
+}
+
+func gitOpsWorkspaceUUID(opts *GitOpsWorkspaceOptions) string {
+	if opts == nil {
+		return ""
+	}
+	return strings.TrimSpace(opts.WorkspaceUUID)
+}
+
 // GitOpsConfigResponse is a single config envelope.
 type GitOpsConfigResponse struct {
 	Success bool         `json:"success,omitempty"`
@@ -295,9 +321,10 @@ func (s *GitOpsService) List(ctx context.Context, opts *GitOpsListOptions) (*Git
 }
 
 // Get returns one GitOps application by UUID.
-// GET /api/v1/gitops/applications/:uuid
-func (s *GitOpsService) Get(ctx context.Context, uuid string) (*GitOpsConfigResponse, *http.Response, error) {
-	u := fmt.Sprintf("api/v1/gitops/applications/%s", uuid)
+// GET /api/v1/gitops/applications/:uuid?workspace_uuid=
+// opts may be nil but production controllers require workspace_uuid.
+func (s *GitOpsService) Get(ctx context.Context, uuid string, opts *GitOpsWorkspaceOptions) (*GitOpsConfigResponse, *http.Response, error) {
+	u := appendGitOpsWorkspaceUUID(fmt.Sprintf("api/v1/gitops/applications/%s", uuid), gitOpsWorkspaceUUID(opts))
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -313,9 +340,9 @@ func (s *GitOpsService) Get(ctx context.Context, uuid string) (*GitOpsConfigResp
 }
 
 // Update updates a GitOps application configuration.
-// PUT /api/v1/gitops/applications/:uuid
-func (s *GitOpsService) Update(ctx context.Context, uuid string, body *UpdateGitOpsConfigRequest) (*GitOpsConfigResponse, *http.Response, error) {
-	u := fmt.Sprintf("api/v1/gitops/applications/%s", uuid)
+// PUT /api/v1/gitops/applications/:uuid?workspace_uuid=
+func (s *GitOpsService) Update(ctx context.Context, uuid string, body *UpdateGitOpsConfigRequest, opts *GitOpsWorkspaceOptions) (*GitOpsConfigResponse, *http.Response, error) {
+	u := appendGitOpsWorkspaceUUID(fmt.Sprintf("api/v1/gitops/applications/%s", uuid), gitOpsWorkspaceUUID(opts))
 
 	req, err := s.client.NewRequest(http.MethodPut, u, body)
 	if err != nil {
@@ -331,9 +358,9 @@ func (s *GitOpsService) Update(ctx context.Context, uuid string, body *UpdateGit
 }
 
 // Delete removes a GitOps application configuration.
-// DELETE /api/v1/gitops/applications/:uuid
-func (s *GitOpsService) Delete(ctx context.Context, uuid string) (*http.Response, error) {
-	u := fmt.Sprintf("api/v1/gitops/applications/%s", uuid)
+// DELETE /api/v1/gitops/applications/:uuid?workspace_uuid=
+func (s *GitOpsService) Delete(ctx context.Context, uuid string, opts *GitOpsWorkspaceOptions) (*http.Response, error) {
+	u := appendGitOpsWorkspaceUUID(fmt.Sprintf("api/v1/gitops/applications/%s", uuid), gitOpsWorkspaceUUID(opts))
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {
@@ -343,9 +370,9 @@ func (s *GitOpsService) Delete(ctx context.Context, uuid string) (*http.Response
 }
 
 // TriggerSync starts a manual sync for a GitOps application.
-// POST /api/v1/gitops/applications/:uuid/sync
-func (s *GitOpsService) TriggerSync(ctx context.Context, uuid string, body *TriggerGitOpsSyncRequest) (*GitOpsSyncTriggerResponse, *http.Response, error) {
-	u := fmt.Sprintf("api/v1/gitops/applications/%s/sync", uuid)
+// POST /api/v1/gitops/applications/:uuid/sync?workspace_uuid=
+func (s *GitOpsService) TriggerSync(ctx context.Context, uuid string, body *TriggerGitOpsSyncRequest, opts *GitOpsWorkspaceOptions) (*GitOpsSyncTriggerResponse, *http.Response, error) {
+	u := appendGitOpsWorkspaceUUID(fmt.Sprintf("api/v1/gitops/applications/%s/sync", uuid), gitOpsWorkspaceUUID(opts))
 
 	req, err := s.client.NewRequest(http.MethodPost, u, body)
 	if err != nil {
@@ -361,9 +388,9 @@ func (s *GitOpsService) TriggerSync(ctx context.Context, uuid string, body *Trig
 }
 
 // GetSyncStatus returns the current sync/health status.
-// GET /api/v1/gitops/applications/:uuid/sync-status
-func (s *GitOpsService) GetSyncStatus(ctx context.Context, uuid string) (*GitOpsSyncStatusResponse, *http.Response, error) {
-	u := fmt.Sprintf("api/v1/gitops/applications/%s/sync-status", uuid)
+// GET /api/v1/gitops/applications/:uuid/sync-status?workspace_uuid=
+func (s *GitOpsService) GetSyncStatus(ctx context.Context, uuid string, opts *GitOpsWorkspaceOptions) (*GitOpsSyncStatusResponse, *http.Response, error) {
+	u := appendGitOpsWorkspaceUUID(fmt.Sprintf("api/v1/gitops/applications/%s/sync-status", uuid), gitOpsWorkspaceUUID(opts))
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -379,9 +406,9 @@ func (s *GitOpsService) GetSyncStatus(ctx context.Context, uuid string) (*GitOps
 }
 
 // GetDiff returns the git vs live state diff for an application.
-// GET /api/v1/gitops/applications/:uuid/diff
-func (s *GitOpsService) GetDiff(ctx context.Context, uuid string) (*GitOpsDiffResponse, *http.Response, error) {
-	u := fmt.Sprintf("api/v1/gitops/applications/%s/diff", uuid)
+// GET /api/v1/gitops/applications/:uuid/diff?workspace_uuid=
+func (s *GitOpsService) GetDiff(ctx context.Context, uuid string, opts *GitOpsWorkspaceOptions) (*GitOpsDiffResponse, *http.Response, error) {
+	u := appendGitOpsWorkspaceUUID(fmt.Sprintf("api/v1/gitops/applications/%s/diff", uuid), gitOpsWorkspaceUUID(opts))
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -397,7 +424,7 @@ func (s *GitOpsService) GetDiff(ctx context.Context, uuid string) (*GitOpsDiffRe
 }
 
 // GetHistory returns paginated sync history for an application.
-// GET /api/v1/gitops/applications/:uuid/history?page=&limit=
+// GET /api/v1/gitops/applications/:uuid/history?page=&limit=&workspace_uuid=
 func (s *GitOpsService) GetHistory(ctx context.Context, uuid string, opts *GitOpsListOptions) (*GitOpsSyncHistoryResponse, *http.Response, error) {
 	u := fmt.Sprintf("api/v1/gitops/applications/%s/history", uuid)
 	u, err := addOptions(u, opts)
