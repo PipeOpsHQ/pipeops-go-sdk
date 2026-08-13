@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `AuditLogService.ListProject` / `ListWorkspace` — historical project activity via `GET /project/audit-logs/:uuid` and `GET /project/workspace-audit-logs` (filters: action, actor_type, category, search, from/to, pagination). Replaces the stub that called non-existent `/audit/logs`.
 - `SandboxService.Exec` — run non-interactive commands in a sandbox via `POST /api/v1/sandboxes/:id/exec` (`command` / `cmd`, stdout/stderr/exit_code)
 - `SandboxService.ListFiles` / `ReadFile` — list directories and read file content via `GET .../files` and `.../files/content`
 - `SandboxService` (`Client.Sandboxes`) for Rexec sandboxes BFF: list/get/create/start/stop/delete/restart, session grants, mint `rexec_*` API token, workspace Rexec binding, and daily usage (`/api/v1/sandboxes`)

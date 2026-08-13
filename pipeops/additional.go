@@ -863,61 +863,8 @@ func (s *LogService) StreamLogs(ctx context.Context, projectUUID string) (*http.
 	return resp, err
 }
 
-// AuditLogService handles audit log related methods.
-type AuditLogService struct {
-	client *Client
-}
-
-// AuditLog represents an audit log entry.
-type AuditLog struct {
-	ID        string     `json:"id,omitempty"`
-	UUID      string     `json:"uuid,omitempty"`
-	UserID    string     `json:"user_id,omitempty"`
-	Action    string     `json:"action,omitempty"`
-	Resource  string     `json:"resource,omitempty"`
-	IPAddress string     `json:"ip_address,omitempty"`
-	CreatedAt *Timestamp `json:"created_at,omitempty"`
-}
-
-// AuditLogsResponse represents audit logs response.
-type AuditLogsResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Data    struct {
-		Logs []AuditLog `json:"logs"`
-	} `json:"data"`
-}
-
-// ListAuditLogs lists audit logs.
-func (s *AuditLogService) ListAuditLogs(ctx context.Context) (*AuditLogsResponse, *http.Response, error) {
-	u := "audit/logs"
-
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	logsResp := new(AuditLogsResponse)
-	resp, err := s.client.Do(ctx, req, logsResp)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return logsResp, resp, nil
-}
-
-// GetAuditLog gets a specific audit log entry.
-func (s *AuditLogService) GetAuditLog(ctx context.Context, logUUID string) (*http.Response, error) {
-	u := fmt.Sprintf("audit/logs/%s", logUUID)
-
-	req, err := s.client.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.client.Do(ctx, req, nil)
-	return resp, err
-}
+// Audit log types and methods live in auditlogs.go (project + workspace
+// historical activity against /project/audit-logs and /project/workspace-audit-logs).
 
 // AlertService handles alert and monitoring related methods.
 type AlertService struct {
