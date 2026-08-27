@@ -356,6 +356,40 @@ func (s *AddOnService) GetDeployment(ctx context.Context, deploymentUUID string,
 	return nil, httpResp, fmt.Errorf("addon deployment %q not found in workspace deployments overview", deploymentUUID)
 }
 
+// RestartDeployment rolls an add-on deployment's pods without rebuilding.
+func (s *AddOnService) RestartDeployment(ctx context.Context, deploymentUUID string, opts ...*ListDeploymentsOptions) (*AddOnDeploymentResponse, *http.Response, error) {
+	deploymentUUID = strings.TrimSpace(deploymentUUID)
+	if deploymentUUID == "" {
+		return nil, nil, errors.New("deployment UUID cannot be empty")
+	}
+
+	u := fmt.Sprintf("addons/deployments/%s/restart", url.PathEscape(deploymentUUID))
+	workspaceUUID := ""
+	if len(opts) > 0 && opts[0] != nil {
+		workspaceUUID = strings.TrimSpace(opts[0].WorkspaceUUID)
+	}
+	if workspaceUUID == "" {
+		if ws, _, wsErr := firstWorkspaceUUID(ctx, s.client); wsErr == nil {
+			workspaceUUID = ws
+		}
+	}
+	if workspaceUUID != "" {
+		u = u + "?workspace=" + url.QueryEscape(workspaceUUID)
+	}
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	restartResp := new(AddOnDeploymentResponse)
+	resp, err := s.client.Do(ctx, req, restartResp)
+	if err != nil {
+		return nil, resp, err
+	}
+	return restartResp, resp, nil
+}
+
 // DeleteDeployment deletes an add-on deployment.
 func (s *AddOnService) DeleteDeployment(ctx context.Context, deploymentUUID string) (*http.Response, error) {
 	u := fmt.Sprintf("addons/deployments/%s", deploymentUUID)
