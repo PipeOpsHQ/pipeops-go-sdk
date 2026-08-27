@@ -63,6 +63,38 @@ func TestAddOnServiceDeploy_SendsNestedAndThinShape(t *testing.T) {
 	}
 }
 
+func TestAddOnServiceRestartDeployment(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/addons/deployments/dep-1/restart" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		if r.URL.Query().Get("workspace") != "ws-1" {
+			t.Fatalf("workspace query = %q", r.URL.Query().Get("workspace"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(`{"success":true,"message":"addon restart requested","data":{"UID":"dep-1"}}`)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, _, err := client.AddOns.RestartDeployment(context.Background(), "dep-1", &ListDeploymentsOptions{
+		WorkspaceUUID: "ws-1",
+	})
+	if err != nil {
+		t.Fatalf("RestartDeployment: %v", err)
+	}
+	if resp == nil || !resp.Success {
+		t.Fatalf("response = %#v", resp)
+	}
+}
+
 func TestAddOnServiceDeploy_RequiresServer(t *testing.T) {
 	t.Parallel()
 	client, err := NewClient("https://api.pipeops.test")
